@@ -694,7 +694,14 @@ async function deleteFolder(id){
 // Nota: a letra-raiz do acorde precisa ser MAIÚSCULA (como se escreve normalmente:
 // D9, Am7, C9, G). Isso evita que palavras comuns da letra (ex: "a", "e") sejam
 // confundidas com cifras.
-const CHORD_RE = /^[A-G](#|b)?(maj|min|m|dim|aug|sus|add)?[0-9]*(\/[A-G](#|b)?)?$/;
+// Cobre: acordes simples (C, Am, G7), com qualidade (maj7, min, dim, aug, sus2/4, add9),
+// abreviação "7M"/"9M" (maior), alterações inline (m7b5, 7#5, 7b9), extensões entre
+// parênteses — inclusive múltiplas ("(9)", "(#11)", "(9,13)") — e baixo/inversão via
+// barra (D/F#) ou extensão numérica via barra (C6/9).
+const CHORD_RE = /^[A-G](#|b)?((maj|min|mi|dim|aug|sus|add|m|M|(#|b)?[0-9]+)+)?(\((#|b)?[0-9]+(\s*,\s*(#|b)?[0-9]+)*\))?(\/([A-G](#|b)?|[0-9]{1,2}))?$/;
+// Tokens "neutros": parênteses soltos, marcadores de repetição (2x, 4x), hífens, etc.
+// Aparecem em trechos como "( E  A9  F#m7 )" e não podem derrubar a detecção da linha.
+const NEUTRAL_TOKEN_RE = /^[()xX0-9.,\-–]+$/;
 const NOTES_SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const FLAT_TO_SHARP = {Db:'C#',Eb:'D#',Gb:'F#',Ab:'G#',Bb:'A#'};
 
@@ -728,16 +735,18 @@ function renderChordContent(content, steps){
     const tokens = line.split(/(\s+)/);
     const isBracket = t => /^\[.+\]$/.test(t);
     const isWs = t => t==='' || /^\s+$/.test(t);
+    const isNeutral = t => NEUTRAL_TOKEN_RE.test(t);
     // Uma linha só é tratada como "linha de cifra" quando TODOS os tokens que não
-    // são espaço nem marcador [Seção] são acordes válidos. Isso evita marcar como
-    // cifra uma palavra qualquer da letra que só por coincidência bata com o padrão
-    // (ex: uma linha de letra nunca é 100% composta por tokens tipo "D9 Am7 C9 G").
-    const words = tokens.filter(t=>!isWs(t) && !isBracket(t));
+    // são espaço, marcador [Seção] nem "neutros" (parênteses soltos, 2x, etc.) são
+    // acordes válidos. Isso evita marcar como cifra uma palavra qualquer da letra
+    // que só por coincidência bata com o padrão, e evita que um parêntese solto de
+    // repetição (ex: "( E  A9  F#m7 )") derrube a coloração da linha inteira.
+    const words = tokens.filter(t=>!isWs(t) && !isBracket(t) && !isNeutral(t));
     const isChordLine = words.length>0 && words.every(t=>CHORD_RE.test(t));
     const html = tokens.map(tok=>{
       if(isWs(tok)) return escapeHtml(tok);
       if(isBracket(tok)) return `<span class="section">${escapeHtml(tok)}</span>`;
-      if(isChordLine) return `<span class="chord">${escapeHtml(transposeToken(tok, steps))}</span>`;
+      if(isChordLine && !isNeutral(tok)) return `<span class="chord">${escapeHtml(transposeToken(tok, steps))}</span>`;
       return escapeHtml(tok);
     }).join('');
     return `<div class="line">${html}</div>`;
