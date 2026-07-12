@@ -260,6 +260,7 @@
     <div class="actions">
       <span class="sync-dot loading" id="sync-dot" title="Sincronizando..."></span>
       <button class="icon-btn logout-btn" onclick="doLogout()" title="Sair">⏻</button>
+      <button class="icon-btn" id="fullscreen-btn" onclick="toggleFullscreen()" title="Tela cheia">⛶</button>
       <button class="icon-btn" onclick="openImportExport()" title="Backup">⇅</button>
       <button class="icon-btn" onclick="openEdit(null)">＋</button>
     </div>
@@ -337,6 +338,7 @@
       </button>
       <button onclick="adjustFont(-1)"><span>A−</span>Fonte</button>
       <button onclick="adjustFont(1)"><span>A+</span>Fonte</button>
+      <button id="fullscreen-btn-song" onclick="toggleFullscreen()"><span id="fullscreen-icon-song">⛶</span>Tela cheia</button>
     </div>
   </div>
   <div class="scroll-speed" id="scroll-speed-panel" style="display:none;">
@@ -369,7 +371,7 @@ D9        Am7
 Digno é o Cordeiro, que foi morto
 C9        G
 Santo, Santo Ele é"></textarea>
-    <div class="hint">Dica: escreva os acordes (D9, Am7, C9, G...) em uma linha e a letra correspondente logo abaixo. O app reconhece automaticamente e colore os acordes. Marcadores como [Intro] ou [Refrão] também são destacados.</div>
+    <div class="hint">Dica: escreva os acordes (D9, Am7, C9, G...) com a nota em MAIÚSCULA, sozinhos em uma linha, com a letra correspondente logo abaixo. O app só colore uma linha como cifra quando ela tem apenas acordes — assim nenhuma palavra da letra é confundida com acorde. Marcadores como [Intro] ou [Refrão] também são destacados.</div>
   </div>
   <div class="save-bar">
     <button class="btn danger" id="delete-btn" style="display:none;" onclick="deleteCurrentSong()">Excluir</button>
@@ -387,7 +389,7 @@ Santo, Santo Ele é"></textarea>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
-  getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc,
+  getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
   onSnapshot, enableIndexedDbPersistence
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
@@ -671,7 +673,10 @@ async function deleteFolder(id){
 }
 
 /* ---------------- SONG VIEW ---------------- */
-const CHORD_RE = /^[A-G](#|b)?(maj|min|m|dim|aug|sus|add)?[0-9]*(\/[A-G](#|b)?)?$/i;
+// Nota: a letra-raiz do acorde precisa ser MAIÚSCULA (como se escreve normalmente:
+// D9, Am7, C9, G). Isso evita que palavras comuns da letra (ex: "a", "e") sejam
+// confundidas com cifras.
+const CHORD_RE = /^[A-G](#|b)?(maj|min|m|dim|aug|sus|add)?[0-9]*(\/[A-G](#|b)?)?$/;
 const NOTES_SHARP = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const FLAT_TO_SHARP = {Db:'C#',Eb:'D#',Gb:'F#',Ab:'G#',Bb:'A#'};
 
@@ -699,10 +704,18 @@ function renderChordContent(content, steps){
   return lines.map(line=>{
     if(line.trim()===''){ return '<div class="line">&nbsp;</div>'; }
     const tokens = line.split(/(\s+)/);
+    const isBracket = t => /^\[.+\]$/.test(t);
+    const isWs = t => t==='' || /^\s+$/.test(t);
+    // Uma linha só é tratada como "linha de cifra" quando TODOS os tokens que não
+    // são espaço nem marcador [Seção] são acordes válidos. Isso evita marcar como
+    // cifra uma palavra qualquer da letra que só por coincidência bata com o padrão
+    // (ex: uma linha de letra nunca é 100% composta por tokens tipo "D9 Am7 C9 G").
+    const words = tokens.filter(t=>!isWs(t) && !isBracket(t));
+    const isChordLine = words.length>0 && words.every(t=>CHORD_RE.test(t));
     const html = tokens.map(tok=>{
-      if(/^\s+$/.test(tok) || tok==='') return escapeHtml(tok);
-      if(/^\[.+\]$/.test(tok)) return `<span class="section">${escapeHtml(tok)}</span>`;
-      if(CHORD_RE.test(tok)) return `<span class="chord">${escapeHtml(transposeToken(tok, steps))}</span>`;
+      if(isWs(tok)) return escapeHtml(tok);
+      if(isBracket(tok)) return `<span class="section">${escapeHtml(tok)}</span>`;
+      if(isChordLine) return `<span class="chord">${escapeHtml(transposeToken(tok, steps))}</span>`;
       return escapeHtml(tok);
     }).join('');
     return `<div class="line">${html}</div>`;
@@ -833,6 +846,36 @@ function stopAutoScroll(){
 }
 function setScrollSpeed(v){ scrollSpeed = Number(v); }
 
+/* ---------------- TELA CHEIA ---------------- */
+function isFullscreen(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+async function toggleFullscreen(){
+  try{
+    if(!isFullscreen()){
+      const el = document.documentElement;
+      if(el.requestFullscreen) await el.requestFullscreen();
+      else if(el.webkitRequestFullscreen) await el.webkitRequestFullscreen(); // Safari/iOS
+    } else {
+      if(document.exitFullscreen) await document.exitFullscreen();
+      else if(document.webkitExitFullscreen) await document.webkitExitFullscreen();
+    }
+  }catch(e){
+    console.error(e);
+    toast('Seu navegador não suporta tela cheia aqui');
+  }
+}
+function updateFullscreenIcons(){
+  const on = isFullscreen();
+  const icon = on ? '⤫' : '⛶';
+  const btn1 = document.getElementById('fullscreen-btn');
+  if(btn1){ btn1.textContent = icon; btn1.title = on ? 'Sair da tela cheia' : 'Tela cheia'; }
+  const iconSong = document.getElementById('fullscreen-icon-song');
+  if(iconSong) iconSong.textContent = icon;
+}
+document.addEventListener('fullscreenchange', updateFullscreenIcons);
+document.addEventListener('webkitfullscreenchange', updateFullscreenIcons);
+
 /* ---------------- EDIT / NEW FORM ---------------- */
 const TOM_OPTIONS = ['C','C#','Db','D','D#','Eb','E','F','F#','Gb','G','G#','Ab','A','A#','Bb','B',
   'Cm','C#m','Dm','D#m','Em','Fm','F#m','Gm','G#m','Am','A#m','Bm'];
@@ -921,19 +964,17 @@ async function confirmDeleteSong(){
   }catch(e){ console.error(e); toast('Erro ao excluir cifra'); }
 }
 
-/* ---------------- IMPORT / EXPORT (backup extra) ---------------- */
+/* ---------------- EXPORT (backup extra) ---------------- */
 function openImportExport(){
   showModal(`
     <h3>Backup</h3>
     <p style="color:var(--text-dim); font-size:13px; line-height:1.5;">
       As cifras já ficam sincronizadas automaticamente entre todos que acessam este app pelo Firebase.
-      Use isto apenas para um backup extra em arquivo, ou para migrar para outro projeto Firebase.
+      Use isto apenas para gerar um arquivo de backup extra.
     </p>
     <div class="row-btns">
-      <button class="btn ghost" onclick="importFile()">Importar arquivo</button>
       <button class="btn primary" onclick="exportFile()">Exportar arquivo</button>
     </div>
-    <input type="file" id="import-input" accept=".json" style="display:none" onchange="handleImport(event)">
   `);
 }
 function exportFile(){
@@ -945,29 +986,6 @@ function exportFile(){
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   closeModal(); toast('Arquivo exportado');
-}
-function importFile(){ document.getElementById('import-input').click(); }
-async function handleImport(e){
-  const file = e.target.files[0];
-  if(!file || !db) return;
-  const reader = new FileReader();
-  reader.onload = async function(evt){
-    try{
-      const data = JSON.parse(evt.target.result);
-      if(Array.isArray(data.songs) && Array.isArray(data.folders)){
-        await Promise.all(data.folders.map(f=>setDoc(doc(db,'folders', f.id), {name:f.name}, {merge:true})));
-        await Promise.all(data.songs.map(s=>setDoc(doc(db,'songs', s.id), {
-          title:s.title, artist:s.artist||'', tom:s.tom||'C', content:s.content||'',
-          folders:s.folders||[], updatedAt: s.updatedAt||Date.now()
-        }, {merge:true})));
-        closeModal();
-        toast('Cifras importadas');
-      } else {
-        toast('Arquivo inválido');
-      }
-    }catch(err){ console.error(err); toast('Erro ao importar arquivo'); }
-  };
-  reader.readAsText(file);
 }
 
 /* ---------------- MODAL / TOAST ---------------- */
@@ -990,7 +1008,7 @@ Object.assign(window, {
   renameFolder, confirmRenameFolder, deleteFolder, openSong, backFromSong, transposeSong,
   adjustFont, openSongMenu, openSongMenuFor, manageSongFolders, confirmSongFolders,
   toggleAutoScroll, setScrollSpeed, openEdit, cancelEdit, saveSong, deleteCurrentSong,
-  confirmDeleteSong, openImportExport, exportFile, importFile, handleImport, closeModal,
+  confirmDeleteSong, openImportExport, exportFile, closeModal, toggleFullscreen,
   doLogin, doForgotPassword, doLogout
 });
 window.currentSongId = null;
