@@ -841,21 +841,35 @@ async function confirmSongFolders(id){
 }
 
 /* ---------------- AUTO-SCROLL ---------------- */
-let scrolling = false, scrollSpeed = 20, scrollRAF = null, lastTs = null;
+let scrolling = false, scrollSpeed = 20, scrollRAF = null, lastTs = null, scrollAccum = 0;
 function toggleAutoScroll(){ scrolling ? stopAutoScroll() : startAutoScroll(); }
 function startAutoScroll(){
+  const content = document.getElementById('chord-content');
+  // Se o conteúdo já cabe inteiro na tela (comum em telas grandes como iPad/PC,
+  // ou em cifras curtas), não há nada para rolar — evita ligar e desligar sozinho.
+  if(content.scrollHeight - content.clientHeight < 4){
+    toast('Não há conteúdo suficiente para rolar');
+    return;
+  }
   scrolling = true;
   document.getElementById('scroll-icon').textContent = '❚❚';
   document.getElementById('scroll-label').textContent = 'Parar';
   document.getElementById('scroll-toggle-btn').classList.add('on');
   document.getElementById('scroll-speed-panel').style.display = 'flex';
   lastTs = null;
-  const content = document.getElementById('chord-content');
+  // Guarda a posição em uma variável própria com casas decimais. O navegador
+  // pode arredondar scrollTop para inteiro internamente (comum em desktop/iPad);
+  // se dependêssemos de reler scrollTop a cada frame, incrementos pequenos
+  // (velocidades baixas/médias do slider) seriam descartados e a rolagem
+  // travaria em 0 para sempre. Guardando a posição real aqui, cada frame soma
+  // certinho independente de como o navegador arredonda o valor exibido.
+  scrollAccum = content.scrollTop;
   function step(ts){
     if(!scrolling) return;
     if(lastTs!=null){
       const dt = (ts-lastTs)/1000;
-      content.scrollTop += scrollSpeed*dt*1.2;
+      scrollAccum += scrollSpeed*dt*1.2;
+      content.scrollTop = scrollAccum;
       if(content.scrollTop + content.clientHeight >= content.scrollHeight-2){ stopAutoScroll(); }
     }
     lastTs = ts;
