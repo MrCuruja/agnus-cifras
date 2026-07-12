@@ -107,11 +107,21 @@
   .transpose-ctrl button{width:28px; height:28px; border-radius:50%; border:none; background:var(--bg-elev); color:var(--text); font-size:16px; cursor:pointer;}
   .transpose-ctrl .val{min-width:34px; text-align:center; color:var(--accent); font-weight:700; font-size:13px;}
   .chord-content{
-    padding:18px 16px 140px; overflow-y:auto; flex:1;
+    padding:18px 16px 140px; overflow-y:auto; overflow-x:hidden; flex:1;
     font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
     font-size:15px; line-height:1.55; white-space:pre-wrap; word-wrap:break-word;
+    max-width:100%;
   }
-  .chord-content .line{white-space:pre;}
+  /* Cada linha da cifra precisa quebrar sozinha para se adaptar à largura do
+     aparelho e ao tamanho de fonte escolhido pelo usuário (botões A-/A+), sem
+     nunca forçar rolagem horizontal. "break-spaces" preserva os espaços usados
+     para alinhar acordes acima da letra (diferente de "pre-wrap" puro, que pode
+     colapsar espaços justamente no ponto de quebra) e "overflow-wrap:anywhere"
+     garante que até um token isolado maior que a tela (ex: um acorde bem longo)
+     seja quebrado em vez de vazar da área visível.*/
+  .chord-content .line{
+    white-space:break-spaces; overflow-wrap:anywhere; max-width:100%;
+  }
   .chord-content .chord{color:var(--accent); font-weight:700;}
   .chord-content .section{color:#8fb8ff; font-weight:700;}
   .song-toolbar{
