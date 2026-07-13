@@ -296,11 +296,11 @@
   </div>
   <div class="list" id="cifras-list"></div>
   <nav class="bottom">
-    <button class="active" onclick="showScreen('cifras')">
+    <button class="active" onclick="goToTab('cifras')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
       Cifras
     </button>
-    <button onclick="showScreen('listas')">
+    <button onclick="goToTab('listas')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
       Listas
     </button>
@@ -317,11 +317,11 @@
   </header>
   <div class="list" id="listas-list" style="padding-top:12px;"></div>
   <nav class="bottom">
-    <button onclick="showScreen('cifras')">
+    <button onclick="goToTab('cifras')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
       Cifras
     </button>
-    <button class="active" onclick="showScreen('listas')">
+    <button class="active" onclick="goToTab('listas')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
       Listas
     </button>
@@ -331,7 +331,7 @@
 <!-- ===================== FOLDER VIEW SCREEN ===================== -->
 <div class="screen" id="screen-folder">
   <div class="folder-header">
-    <button class="back-btn" onclick="showScreen('listas')">←</button>
+    <button class="back-btn" onclick="history.back()">←</button>
     <h2 id="folder-title">Pasta</h2>
   </div>
   <div class="list" id="folder-list" style="padding-top:12px;"></div>
@@ -551,15 +551,64 @@ function stopListeners(){
 function onDataChanged(){
   if(isActive('cifras')) renderCifras();
   if(isActive('listas')) renderListas();
-  if(isActive('folder') && currentFolderId) openFolder(currentFolderId, true);
+  if(isActive('folder') && currentFolderId) openFolder(currentFolderId, {stay:true});
   if(isActive('song') && currentSongId){
     const s = songs.find(x=>x.id===currentSongId);
-    if(s) refreshSongView(s); else showScreen('cifras');
+    if(s) refreshSongView(s); else { showScreen('cifras'); replaceNavState({screen:'cifras'}); }
   }
   if(!isActive('edit')) renderFolderChecksIfIdle();
 }
 function isActive(name){ return document.getElementById('screen-'+name).classList.contains('active'); }
 function renderFolderChecksIfIdle(){ /* no-op: chips only rebuilt when opening the form */ }
+
+/* ---------------- NAVEGAÇÃO E HISTÓRICO DO NAVEGADOR ----------------
+   Todo o app é uma única página (SPA): trocar de tela normalmente não mexe no
+   histórico do navegador, então o botão "voltar" simplesmente fechava a página
+   inteira. Para evitar isso em QUALQUER tela do app (Cifras, Listas, pasta,
+   cifra aberta, editar/nova cifra, e até os pop-ups/modais), cada navegação
+   "para frente" empilha um estado no histórico (history.pushState) e o botão
+   "voltar" do navegador (evento popstate) é interceptado para desfazer essa
+   navegação dentro do próprio app — nunca fechando a página.
+*/
+function pushNavState(state){ history.pushState(state, '', '#'+state.screen); }
+function replaceNavState(state){ history.replaceState(state, '', '#'+state.screen); }
+
+// Reconstrói a tela correspondente ao estado para o qual o navegador acabou de
+// voltar (chamado a partir do evento popstate). Nunca empilha um novo estado
+// aqui, senão criaríamos um loop.
+function restoreNavState(state){
+  stopAutoScroll();
+  if(!state || !state.screen || state.screen==='cifras'){ showScreen('cifras'); return; }
+  if(state.screen==='listas'){ showScreen('listas'); return; }
+  if(state.screen==='folder'){ openFolder(state.folderId, {skipHistory:true}); return; }
+  if(state.screen==='song'){
+    currentSongId = state.songId;
+    cameFrom = state.cameFrom || 'cifras';
+    const s = songs.find(x=>x.id===state.songId);
+    if(s){ refreshSongView(s); showScreen('song'); } else { showScreen('cifras'); }
+    return;
+  }
+  if(state.screen==='edit'){
+    cameFrom = state.cameFrom || cameFrom;
+    openEdit(state.songId||null, {skipHistory:true});
+    return;
+  }
+  showScreen('cifras');
+}
+window.addEventListener('popstate', function(e){
+  const modal = document.getElementById('modal-backdrop');
+  // Se havia um modal/pop-up aberto, o botão voltar primeiro só fecha o modal
+  // (igual ao padrão de apps mobile) e não navega a tela de trás.
+  if(modal.classList.contains('show')){ modal.classList.remove('show'); return; }
+  restoreNavState(e.state);
+});
+// Alterna entre as abas iniciais (Cifras/Listas) empilhando histórico, para que
+// o botão voltar também funcione entre elas.
+function goToTab(name){
+  if(isActive(name)) return;
+  showScreen(name);
+  pushNavState({screen:name});
+}
 
 /* ---------------- NAVIGATION ---------------- */
 function showScreen(name){
@@ -625,10 +674,11 @@ function renderListas(){
   }).join('');
 }
 
-function openFolder(id, stay){
+function openFolder(id, opts){
+  opts = opts || {};
   currentFolderId = id;
   const f = folders.find(x=>x.id===id);
-  if(!f){ if(!stay) showScreen('listas'); return; }
+  if(!f){ if(!opts.stay) showScreen('listas'); return; }
   document.getElementById('folder-title').textContent = f.name;
   const items = songs.filter(s=>(s.folders||[]).includes(id)).sort((a,b)=>(a.title||'').localeCompare(b.title||'','pt-BR'));
   const list = document.getElementById('folder-list');
@@ -642,7 +692,10 @@ function openFolder(id, stay){
         <div class="tom">${escapeHtml(s.tom||'')}</div>
       </div>`).join('');
   }
-  if(!stay) showScreen('folder');
+  if(!opts.stay){
+    showScreen('folder');
+    if(!opts.skipHistory) pushNavState({screen:'folder', folderId:id});
+  }
 }
 
 function openNewFolder(){
@@ -777,7 +830,8 @@ function refreshSongView(s){
   document.getElementById('chord-content').style.fontSize = fontSize+'px';
   updateTomDisplay(s);
 }
-function openSong(id, from){
+function openSong(id, from, opts){
+  opts = opts || {};
   currentSongId = id;
   currentTranspose = 0;
   cameFrom = from || (isActive('folder') ? 'folder' : (isActive('listas')?'listas':'cifras'));
@@ -785,29 +839,14 @@ function openSong(id, from){
   if(!s) return;
   refreshSongView(s);
   showScreen('song');
-  // Empilha um estado extra no histórico do navegador. Assim, ao apertar "voltar"
-  // no navegador enquanto uma cifra está aberta, o app intercepta a navegação
-  // (evento popstate abaixo) e volta para a tela inicial, em vez de fechar a
-  // página inteira ou sair do app.
-  history.pushState({screen:'song', songId:id}, '', '#cifra');
+  // Empilha (ou substitui, quando vindo de "Salvar") um estado no histórico do
+  // navegador, para que o botão "voltar" saia da cifra em vez de fechar a página.
+  if(!opts.skipHistory){
+    if(opts.replace) replaceNavState({screen:'song', songId:id, cameFrom});
+    else pushNavState({screen:'song', songId:id, cameFrom});
+  }
 }
-function backFromSong(){
-  stopAutoScroll();
-  // Se o histórico foi empilhado por openSong(), consome essa entrada para manter
-  // o histórico do navegador consistente com o estado da tela.
-  if(history.state && history.state.screen==='song') history.back();
-  else goToInitialScreen();
-}
-function goToInitialScreen(){
-  stopAutoScroll();
-  if(cameFrom==='folder' && currentFolderId) openFolder(currentFolderId);
-  else showScreen(cameFrom==='listas' ? 'listas' : 'cifras');
-}
-// Intercepta o botão "voltar" do navegador: se uma cifra estiver aberta, volta
-// para a tela inicial do app (em vez de deixar o navegador sair da página).
-window.addEventListener('popstate', function(){
-  if(isActive('song')) goToInitialScreen();
-});
+function backFromSong(){ history.back(); }
 function transposeSong(delta){
   currentTranspose += delta;
   const s = songs.find(x=>x.id===currentSongId);
@@ -984,13 +1023,17 @@ function renderFolderChecks(selected){
   }
   wrap.innerHTML = folders.map(f=>`<div class="folder-chip ${selected.includes(f.id)?'sel':''}" data-fid="${f.id}" onclick="this.classList.toggle('sel')">${escapeHtml(f.name)}</div>`).join('');
 }
-function openEdit(id){
+function openEdit(id, opts){
+  opts = opts || {};
   currentSongId = id;
+  if(!opts.skipHistory){
+    cameFrom = isActive('folder') ? 'folder' : (isActive('listas') ? 'listas' : (isActive('song') ? cameFrom : 'cifras'));
+  }
   const tomSel = document.getElementById('f-tom');
   tomSel.innerHTML = TOM_OPTIONS.map(t=>`<option value="${t}">${t}</option>`).join('');
   if(id){
     const s = songs.find(x=>x.id===id);
-    if(!s) return;
+    if(!s){ showScreen('cifras'); return; }
     document.getElementById('edit-title-label').textContent = 'Editar cifra';
     document.getElementById('f-title').value = s.title||'';
     document.getElementById('f-artist').value = s.artist||'';
@@ -1008,11 +1051,12 @@ function openEdit(id){
     document.getElementById('delete-btn').style.display = 'none';
   }
   showScreen('edit');
+  if(!opts.skipHistory) pushNavState({screen:'edit', songId:id||null, cameFrom});
 }
-function cancelEdit(){
-  if(currentSongId){ const s = songs.find(x=>x.id===currentSongId); if(s){ openSong(currentSongId, cameFrom); return; } }
-  showScreen(cameFrom==='listas'||cameFrom==='folder' ? 'listas' : 'cifras');
-}
+// Cancelar sempre "desfaz" a navegação pelo histórico do navegador — assim o
+// botão "Cancelar" da tela e o botão "voltar" do navegador levam sempre para o
+// mesmo lugar (a cifra que estava sendo editada, ou a lista/aba de onde veio).
+function cancelEdit(){ history.back(); }
 async function saveSong(){
   if(!db){ toast('Configure o Firebase primeiro'); return; }
   const title = document.getElementById('f-title').value.trim();
@@ -1032,7 +1076,9 @@ async function saveSong(){
       currentSongId = ref.id;
     }
     toast('Cifra salva');
-    openSong(currentSongId, cameFrom);
+    // Substitui (em vez de empilhar) a entrada da tela de edição pela da cifra
+    // salva: o botão voltar continua levando para onde a edição foi aberta.
+    openSong(currentSongId, cameFrom, {replace:true});
   }catch(e){
     console.error(e); toast('Erro ao salvar. Verifique a configuração do Firebase.');
   }finally{
@@ -1054,7 +1100,9 @@ async function confirmDeleteSong(){
   try{
     await deleteDoc(doc(db,'songs',currentSongId));
     closeModal();
-    showScreen(cameFrom==='listas'||cameFrom==='folder'?'listas':'cifras');
+    const dest = cameFrom==='listas'||cameFrom==='folder' ? 'listas' : 'cifras';
+    showScreen(dest);
+    replaceNavState({screen:dest});
     toast('Cifra excluída');
   }catch(e){ console.error(e); toast('Erro ao excluir cifra'); }
 }
@@ -1098,8 +1146,23 @@ function exportFile(){
 function showModal(html){
   document.getElementById('modal-body').innerHTML = html;
   document.getElementById('modal-backdrop').classList.add('show');
+  // Empilha um estado leve no histórico só para o modal: assim o botão "voltar"
+  // do navegador fecha o modal primeiro, em vez de navegar a tela de trás.
+  pushNavState(Object.assign({}, history.state, {modal:true}));
 }
-function closeModal(){ document.getElementById('modal-backdrop').classList.remove('show'); }
+function closeModal(){
+  document.getElementById('modal-backdrop').classList.remove('show');
+  // Se essa entrada do histórico foi empilhada por showModal(), remove a marca
+  // de "modal aberto" dela (sem navegar). Usamos replaceState (síncrono) em vez
+  // de history.back() de propósito: várias ações fecham o modal e, na mesma
+  // sequência, abrem outra tela (ex: "Editar cifra"), e misturar back() com um
+  // pushState logo em seguida pode confundir o histórico do navegador.
+  if(history.state && history.state.modal){
+    const clean = Object.assign({}, history.state);
+    delete clean.modal;
+    replaceNavState(clean);
+  }
+}
 let toastTimer;
 function toast(msg){
   const t = document.getElementById('toast');
@@ -1110,7 +1173,7 @@ function toast(msg){
 
 /* ---------------- EXPOSE TO GLOBAL SCOPE (needed for inline onclick=""") ---------------- */
 Object.assign(window, {
-  showScreen, renderCifras, openFolder, openNewFolder, confirmNewFolder, openFolderMenu,
+  showScreen, goToTab, renderCifras, openFolder, openNewFolder, confirmNewFolder, openFolderMenu,
   renameFolder, confirmRenameFolder, deleteFolder, openSong, backFromSong, transposeSong,
   adjustFont, openSongMenu, openSongMenuFor, manageSongFolders, confirmSongFolders,
   toggleAutoScroll, setScrollSpeed, openEdit, cancelEdit, saveSong, deleteCurrentSong,
@@ -1123,6 +1186,10 @@ Object.defineProperty(window, 'currentSongId', {
 });
 
 /* ---------------- INIT ---------------- */
+// Garante um estado inicial consistente no histórico do navegador ("Cifras"),
+// para que history.back() sempre tenha algo coerente para restaurar assim que
+// o usuário entrar em qualquer outra tela do app.
+if(!history.state) history.replaceState({screen:'cifras'}, '');
 if(!db){
   // Firebase não configurado: mostra listas vazias por trás do aviso de setup
   renderCifras(); renderListas();
