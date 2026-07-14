@@ -602,6 +602,17 @@ window.addEventListener('popstate', function(e){
   if(modal.classList.contains('show')){ modal.classList.remove('show'); return; }
   restoreNavState(e.state);
 });
+// Recalcula a quebra de linha da cifra quando a largura disponível muda (girar
+// o aparelho, entrar/sair da tela cheia, redimensionar a janela no desktop).
+let resizeRewrapTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(resizeRewrapTimer);
+  resizeRewrapTimer = setTimeout(function(){
+    if(!isActive('song') || !currentSongId) return;
+    const s = songs.find(x=>x.id===currentSongId);
+    if(s) refreshSongView(s);
+  }, 150);
+});
 // Alterna entre as abas iniciais (Cifras/Listas) empilhando histórico, para que
 // o botão voltar também funcione entre elas.
 function goToTab(name){
@@ -787,33 +798,134 @@ function transposeToken(token, steps){
 function escapeHtml(str){
   return (str||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
-function renderChordContent(content, steps){
-  // Normaliza espaços "especiais" que alguns teclados de celular podem inserir
-  // (ex: espaço fixo U+00A0) para espaço comum, garantindo que o reconhecimento
-  // de linha de cifra funcione igual em qualquer aparelho.
-  const normalized = (content||'').replace(/[\u00A0\u2000-\u200B\u202F]/g, ' ');
-  const lines = normalized.split('\n');
-  return lines.map(line=>{
-    if(line.trim()===''){ return '<div class="line">&nbsp;</div>'; }
-    const tokens = line.split(/(\s+)/);
-    const isBracket = t => /^\[.+\]$/.test(t);
-    const isWs = t => t==='' || /^\s+$/.test(t);
-    const isNeutral = t => NEUTRAL_TOKEN_RE.test(t);
-    // Uma linha só é tratada como "linha de cifra" quando TODOS os tokens que não
-    // são espaço, marcador [Seção] nem "neutros" (parênteses soltos, 2x, etc.) são
-    // acordes válidos. Isso evita marcar como cifra uma palavra qualquer da letra
-    // que só por coincidência bata com o padrão, e evita que um parêntese solto de
-    // repetição (ex: "( E  A9  F#m7 )") derrube a coloração da linha inteira.
-    const words = tokens.filter(t=>!isWs(t) && !isBracket(t) && !isNeutral(t));
-    const isChordLine = words.length>0 && words.every(t=>CHORD_RE.test(t));
-    const html = tokens.map(tok=>{
-      if(isWs(tok)) return escapeHtml(tok);
-      if(isBracket(tok)) return `<span class="section">${escapeHtml(tok)}</span>`;
-      if(isChordLine && !isNeutral(tok)) return `<span class="chord">${escapeHtml(transposeToken(tok, steps))}</span>`;
-      return escapeHtml(tok);
-    }).join('');
-    return `<div class="line">${html}</div>`;
+function classifyLine(line){
+  const tokens = line.split(/(\s+)/);
+  const isBracket = t => /^\[.+\]$/.test(t);
+  const isWs = t => t==='' || /^\s+$/.test(t);
+  const isNeutral = t => NEUTRAL_TOKEN_RE.test(t);
+  // Uma linha só é tratada como "linha de cifra" quando TODOS os tokens que não
+  // são espaço, marcador [Seção] nem "neutros" (parênteses soltos, 2x, etc.) são
+  // acordes válidos. Isso evita marcar como cifra uma palavra qualquer da letra
+  // que só por coincidência bata com o padrão, e evita que um parêntese solto de
+  // repetição (ex: "( E  A9  F#m7 )") derrube a coloração da linha inteira.
+  const words = tokens.filter(t=>!isWs(t) && !isBracket(t) && !isNeutral(t));
+  const isChordLine = words.length>0 && words.every(t=>CHORD_RE.test(t));
+  return {tokens, isBracket, isWs, isNeutral, isChordLine};
+}
+function renderSingleLine(line, steps, forceChordLine){
+  const info = classifyLine(line);
+  const isChordLine = forceChordLine!==undefined ? forceChordLine : info.isChordLine;
+  const html = info.tokens.map(tok=>{
+    if(info.isWs(tok)) return escapeHtml(tok);
+    if(info.isBracket(tok)) return `<span class="section">${escapeHtml(tok)}</span>`;
+    if(isChordLine && !info.isNeutral(tok)) return `<span class="chord">${escapeHtml(transposeToken(tok, steps))}</span>`;
+    return escapeHtml(tok);
   }).join('');
+  return `<div class="line">${html}</div>`;
+}
+// Quebra JUNTAS uma linha de cifra e a linha de letra logo abaixo dela, sempre no
+// mesmo ponto (mesma coluna) nas duas — assim, quando a linha é longa demais pra
+// largura do aparelho, o acorde continua exatamente acima da sílaba/palavra
+// correspondente em vez de "flutuar" solto, como acontecia quando cada linha
+// quebrava sozinha (CSS não tem como saber que duas linhas de texto precisam
+// quebrar nos mesmos pontos).
+function splitPairSynced(chordLine, lyricLine, maxChars){
+  const total = Math.max(chordLine.length, lyricLine.length);
+  if(!maxChars || maxChars<=0 || total<=maxChars) return [{chord:chordLine, lyric:lyricLine}];
+  const chunks = [];
+  let pos = 0;
+  while(pos < total){
+    let end = Math.min(pos+maxChars, total);
+    if(end < total){
+      // procura, de trás pra frente dentro do limite, uma coluna onde AMBAS as
+      // linhas têm espaço — é aí que dá pra cortar sem partir um acorde ou uma
+      // palavra ao meio.
+      let cut = -1;
+      for(let i=end; i>pos; i--){
+        const c = i<chordLine.length ? chordLine[i] : ' ';
+        const l = i<lyricLine.length ? lyricLine[i] : ' ';
+        if(c===' ' && l===' '){ cut = i; break; }
+      }
+      if(cut>pos) end = cut;
+    }
+    chunks.push({ chord: chordLine.slice(pos,end), lyric: lyricLine.slice(pos,end) });
+    pos = end;
+    while(pos<total){
+      const c = pos<chordLine.length ? chordLine[pos] : ' ';
+      const l = pos<lyricLine.length ? lyricLine[pos] : ' ';
+      if(c===' ' && l===' ') pos++; else break;
+    }
+  }
+  return chunks;
+}
+let _monoMeasureCanvas;
+function getMonoCharWidth(px){
+  try{
+    _monoMeasureCanvas = _monoMeasureCanvas || document.createElement('canvas');
+    const ctx = _monoMeasureCanvas.getContext('2d');
+    ctx.font = px+"px 'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace";
+    // amostra com letras (incl. acentos comuns em português), números e símbolos
+    // de cifra, pra pegar uma largura média confiável mesmo que a fonte não seja
+    // perfeitamente monoespaçada em todos os aparelhos.
+    const sample = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzáéíóúâêôãõçÇ0123456789#°ø()/ ';
+    return ctx.measureText(sample).width / sample.length;
+  }catch(e){ return 0; }
+}
+function getMaxCharsPerLine(){
+  const el = document.getElementById('chord-content');
+  // Usa a largura da própria área da cifra quando disponível; se ela ainda não
+  // estiver visível (ex: tela sendo montada), cai para a largura da janela como
+  // aproximação segura.
+  const widthPx = Math.max(0, (el && el.clientWidth ? el.clientWidth : window.innerWidth) - 32);
+  const charWidthPx = getMonoCharWidth(fontSize);
+  if(!charWidthPx) return 0; // 0 = não tenta quebrar por conta própria (modo seguro)
+  return Math.max(10, Math.floor(widthPx / charWidthPx));
+}
+function renderChordContent(content, steps){
+  // Normaliza caracteres "parecidos" ou invisíveis que teclados de celular e
+  // apps de anotação às vezes inserem no lugar do caractere esperado — o que
+  // por fora parece igual, mas quebra silenciosamente o reconhecimento da cifra:
+  //  - espaços "zero largura"/joiners (ex: colados de um Word/WhatsApp) são
+  //    REMOVIDOS (não viram espaço, senão partiriam um acorde tipo "C/E" ao
+  //    meio, exatamente o bug relatado);
+  //  - espaços "especiais" (fixo, largura de fonte etc.) viram espaço comum;
+  //  - "º"/"ª" (indicador ordinal, comum em teclado PT-BR) viram "°" (diminuto);
+  //  - barras "parecidas" (fração/divisão) viram a barra comum "/".
+  const normalized = (content||'')
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')
+    .replace(/[\u00A0\u2000-\u200A\u202F\u3000]/g, ' ')
+    .replace(/[ºª]/g, '°')
+    .replace(/[⁄∕]/g, '/');
+  const rawLines = normalized.split('\n');
+  const maxChars = getMaxCharsPerLine();
+  const out = [];
+  for(let i=0;i<rawLines.length;i++){
+    const line = rawLines[i];
+    if(line.trim()===''){ out.push('<div class="line">&nbsp;</div>'); continue; }
+    const info = classifyLine(line);
+    if(info.isChordLine){
+      const next = rawLines[i+1];
+      const nextInfo = next!==undefined ? classifyLine(next) : null;
+      const hasLyricPair = next!==undefined && next.trim()!=='' && nextInfo && !nextInfo.isChordLine;
+      if(hasLyricPair){
+        const chunks = splitPairSynced(line, next, maxChars);
+        chunks.forEach(ch=>{
+          out.push(renderSingleLine(ch.chord, steps, true));
+          out.push(renderSingleLine(ch.lyric, steps, false));
+        });
+        i++; // a linha da letra já foi consumida junto
+        continue;
+      }
+      // linha de cifra "solta" (sem letra correspondente embaixo — ex: intro
+      // ou trecho instrumental): não há alinhamento pra preservar, então o CSS
+      // já cuida de quebrar naturalmente pelos espaços entre os acordes.
+      out.push(renderSingleLine(line, steps, true));
+      continue;
+    }
+    // linha comum (letra, marcador de seção, etc.): o CSS já cuida da quebra.
+    out.push(renderSingleLine(line, steps, false));
+  }
+  return out.join('');
 }
 function updateTomDisplay(s){
   const baseIdx = NOTES_SHARP.indexOf(FLAT_TO_SHARP[s.tom]||s.tom);
@@ -856,6 +968,11 @@ function transposeSong(delta){
 function adjustFont(delta){
   fontSize = Math.max(11, Math.min(26, fontSize+delta));
   document.getElementById('chord-content').style.fontSize = fontSize+'px';
+  // A quebra de linha (que mantém acorde e letra alinhados) depende de quantos
+  // caracteres cabem na largura do aparelho no tamanho de fonte atual — então
+  // precisa recalcular o conteúdo sempre que a fonte muda.
+  const s = songs.find(x=>x.id===currentSongId);
+  if(s) refreshSongView(s);
 }
 function openSongMenu(){
   showModal(`
