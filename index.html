@@ -657,7 +657,7 @@ function renderCifras(){
         <div class="name">${escapeHtml(s.title)}</div>
         <div class="sub">${escapeHtml(s.artist||'')}</div>
       </div>
-      <div class="tom">${escapeHtml(s.tom||'')}</div>
+      <div class="tom">${escapeHtml(getDisplayTom(s.tom, s.transpose))}</div>
       <div class="kebab" onclick="event.stopPropagation(); openSongMenuFor('${s.id}')">⋮</div>
     </div>`).join('');
 }
@@ -700,7 +700,7 @@ function openFolder(id, opts){
       <div class="row" onclick="openSong('${s.id}')">
         <div class="thumb">🎵</div>
         <div class="info"><div class="name">${escapeHtml(s.title)}</div><div class="sub">${escapeHtml(s.artist||'')}</div></div>
-        <div class="tom">${escapeHtml(s.tom||'')}</div>
+        <div class="tom">${escapeHtml(getDisplayTom(s.tom, s.transpose))}</div>
       </div>`).join('');
   }
   if(!opts.stay){
@@ -927,19 +927,19 @@ function renderChordContent(content, steps){
   }
   return out.join('');
 }
+// Calcula o tom "de exibição" a partir do tom-base salvo e de um deslocamento
+// (em semitons) — usado tanto na tela da cifra (com o deslocamento "ao vivo"
+// da sessão atual) quanto nas listagens (Cifras/Listas/pasta), que usam o
+// último deslocamento salvo de cada música.
+function getDisplayTom(tom, steps, emptyFallback){
+  tom = tom || '';
+  steps = steps || 0;
+  if(/^[A-G](#|b)?m?$/.test(tom)) return shiftNote(tom, steps);
+  if(steps) return (steps>0?'+':'')+steps;
+  return tom || (emptyFallback!==undefined ? emptyFallback : '');
+}
 function updateTomDisplay(s){
-  const tom = s.tom || '';
-  // shiftNote já lida corretamente com o sufixo "m" de tons menores (ex: "Dm"),
-  // pois só olha a nota raiz (A-G, #/b) e preserva o resto do texto ("m") junto.
-  if(/^[A-G](#|b)?m?$/.test(tom)){
-    document.getElementById('song-tom-display').textContent = shiftNote(tom, currentTranspose);
-    return;
-  }
-  // Tom não reconhecido/definido: mostra o deslocamento numérico (ex: "+2"), ou
-  // o tom original, ou "—". Usa checagem numérica (não "||" numa string) pra não
-  // cair no bug de "0" (deslocamento zero) ser tratado como valor "vazio".
-  document.getElementById('song-tom-display').textContent =
-    currentTranspose ? (currentTranspose>0?'+':'')+currentTranspose : (tom || '—');
+  document.getElementById('song-tom-display').textContent = getDisplayTom(s.tom, currentTranspose, '—');
 }
 function refreshSongView(s){
   document.getElementById('song-title').textContent = s.title;
