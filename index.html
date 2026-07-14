@@ -585,7 +585,7 @@ function restoreNavState(state){
     currentSongId = state.songId;
     cameFrom = state.cameFrom || 'cifras';
     const s = songs.find(x=>x.id===state.songId);
-    if(s){ refreshSongView(s); showScreen('song'); } else { showScreen('cifras'); }
+    if(s){ currentTranspose = (typeof s.transpose==='number') ? s.transpose : 0; refreshSongView(s); showScreen('song'); } else { showScreen('cifras'); }
     return;
   }
   if(state.screen==='edit'){
@@ -928,12 +928,18 @@ function renderChordContent(content, steps){
   return out.join('');
 }
 function updateTomDisplay(s){
-  const baseIdx = NOTES_SHARP.indexOf(FLAT_TO_SHARP[s.tom]||s.tom);
-  if(baseIdx>=0){
-    document.getElementById('song-tom-display').textContent = NOTES_SHARP[((baseIdx+currentTranspose)%12+12)%12];
-  } else {
-    document.getElementById('song-tom-display').textContent = (currentTranspose>0?'+':'')+currentTranspose || (s.tom||'—');
+  const tom = s.tom || '';
+  // shiftNote já lida corretamente com o sufixo "m" de tons menores (ex: "Dm"),
+  // pois só olha a nota raiz (A-G, #/b) e preserva o resto do texto ("m") junto.
+  if(/^[A-G](#|b)?m?$/.test(tom)){
+    document.getElementById('song-tom-display').textContent = shiftNote(tom, currentTranspose);
+    return;
   }
+  // Tom não reconhecido/definido: mostra o deslocamento numérico (ex: "+2"), ou
+  // o tom original, ou "—". Usa checagem numérica (não "||" numa string) pra não
+  // cair no bug de "0" (deslocamento zero) ser tratado como valor "vazio".
+  document.getElementById('song-tom-display').textContent =
+    currentTranspose ? (currentTranspose>0?'+':'')+currentTranspose : (tom || '—');
 }
 function refreshSongView(s){
   document.getElementById('song-title').textContent = s.title;
@@ -945,10 +951,12 @@ function refreshSongView(s){
 function openSong(id, from, opts){
   opts = opts || {};
   currentSongId = id;
-  currentTranspose = 0;
   cameFrom = from || (isActive('folder') ? 'folder' : (isActive('listas')?'listas':'cifras'));
   const s = songs.find(x=>x.id===id);
   if(!s) return;
+  // Abre a cifra já no tom que o usuário deixou selecionado da última vez
+  // (salvo automaticamente em transposeSong/scheduleTransposeSave).
+  currentTranspose = (typeof s.transpose==='number') ? s.transpose : 0;
   refreshSongView(s);
   showScreen('song');
   // Empilha (ou substitui, quando vindo de "Salvar") um estado no histórico do
@@ -958,12 +966,40 @@ function openSong(id, from, opts){
     else pushNavState({screen:'song', songId:id, cameFrom});
   }
 }
-function backFromSong(){ history.back(); }
+function backFromSong(){ flushTransposeSave(); history.back(); }
+/* ---------------- SALVAR TOM SELECIONADO AUTOMATICAMENTE ----------------
+   Sempre que o usuário transpõe uma cifra, guardamos o deslocamento (não a
+   letra do tom) no próprio documento da música no Firestore — assim, da
+   próxima vez que a cifra for aberta (neste ou em outro aparelho, já que é
+   sincronizado), ela já abre no tom selecionado por último. As gravações são
+   "debounced" (só salva um tempinho depois do último clique em -/+) pra não
+   disparar uma escrita no banco a cada clique.
+*/
+let transposeSaveTimer = null;
+let pendingTransposeSave = null;
+function scheduleTransposeSave(songId, steps){
+  pendingTransposeSave = {songId, steps};
+  clearTimeout(transposeSaveTimer);
+  transposeSaveTimer = setTimeout(flushTransposeSave, 700);
+}
+function flushTransposeSave(){
+  clearTimeout(transposeSaveTimer);
+  if(!pendingTransposeSave || !db) return;
+  const {songId, steps} = pendingTransposeSave;
+  pendingTransposeSave = null;
+  updateDoc(doc(db,'songs',songId), {transpose:steps}).catch(e=>console.error(e));
+}
+// Garante que uma transposição feita bem antes de trocar de aba/fechar o
+// navegador não se perca esperando o debounce.
+document.addEventListener('visibilitychange', function(){
+  if(document.visibilityState==='hidden') flushTransposeSave();
+});
 function transposeSong(delta){
   currentTranspose += delta;
   const s = songs.find(x=>x.id===currentSongId);
   if(!s) return;
   refreshSongView(s);
+  scheduleTransposeSave(currentSongId, currentTranspose);
 }
 function adjustFont(delta){
   fontSize = Math.max(11, Math.min(26, fontSize+delta));
