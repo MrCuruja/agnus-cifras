@@ -1301,7 +1301,7 @@ async function confirmSongFolders(id){
 }
 
 /* ---------------- AUTO-SCROLL ---------------- */
-let scrolling = false, scrollSpeed = 20, scrollRAF = null, lastTs = null, scrollAccum = 0;
+let scrolling = false, scrollSpeed = 20, scrollRAF = null, lastTs = null, scrollAccum = 0, lastSet = 0, userInteracting = false, interactionTimeout = null;
 function toggleAutoScroll(){ scrolling ? stopAutoScroll() : startAutoScroll(); }
 function startAutoScroll(){
   const content = document.getElementById('chord-content');
@@ -1324,12 +1324,29 @@ function startAutoScroll(){
   // travaria em 0 para sempre. Guardando a posição real aqui, cada frame soma
   // certinho independente de como o navegador arredonda o valor exibido.
   scrollAccum = content.scrollTop;
+  lastSet = content.scrollTop;
   function step(ts){
     if(!scrolling) return;
+    // Enquanto o usuário está deslizando o dedo (ou logo após, durante a
+    // inércia da rolagem), NÃO forçamos a posição: deixamos a rolagem manual
+    // acontecer livremente e apenas acompanhamos onde ela parou, para retomar
+    // a rolagem automática a partir dali.
+    if(userInteracting){
+      scrollAccum = content.scrollTop;
+      lastSet = content.scrollTop;
+      lastTs = ts;
+      scrollRAF = requestAnimationFrame(step);
+      return;
+    }
     if(lastTs!=null){
+      // Se a posição real divergiu do que aplicamos no frame anterior, foi o
+      // usuário quem moveu (barra de rolagem, teclado, inércia): retomamos a
+      // partir da nova posição em vez de puxar de volta.
+      if(Math.abs(content.scrollTop - lastSet) > 2){ scrollAccum = content.scrollTop; }
       const dt = (ts-lastTs)/1000;
       scrollAccum += scrollSpeed*dt*1.2;
       content.scrollTop = scrollAccum;
+      lastSet = content.scrollTop;
       if(content.scrollTop + content.clientHeight >= content.scrollHeight-2){ stopAutoScroll(); }
     }
     lastTs = ts;
@@ -1350,6 +1367,32 @@ function stopAutoScroll(){
   if(panel) panel.style.display = 'none';
 }
 function setScrollSpeed(v){ scrollSpeed = Number(v); }
+
+// Permite rolar manualmente (dedo, roda do mouse ou barra de rolagem) mesmo com
+// a rolagem automática ligada. Enquanto há interação, a animação para de forçar
+// a posição; quando o gesto termina e a inércia assenta, ela retoma de onde o
+// usuário parou. Os ouvintes ficam no #chord-content (elemento fixo, só o
+// conteúdo interno muda), então valem para qualquer música aberta.
+(function enableManualScrollDuringAuto(){
+  const el = document.getElementById('chord-content');
+  if(!el) return;
+  const begin = ()=>{ userInteracting = true; clearTimeout(interactionTimeout); };
+  const end = ()=>{
+    clearTimeout(interactionTimeout);
+    interactionTimeout = setTimeout(()=>{
+      userInteracting = false;
+      if(scrolling){ scrollAccum = el.scrollTop; lastSet = el.scrollTop; lastTs = null; }
+    }, 700);
+  };
+  el.addEventListener('touchstart', begin, {passive:true});
+  el.addEventListener('touchmove', begin, {passive:true});
+  el.addEventListener('touchend', end, {passive:true});
+  el.addEventListener('touchcancel', end, {passive:true});
+  el.addEventListener('pointerdown', begin, {passive:true});
+  el.addEventListener('pointerup', end, {passive:true});
+  el.addEventListener('pointercancel', end, {passive:true});
+  el.addEventListener('wheel', ()=>{ begin(); end(); }, {passive:true});
+})();
 
 /* ---------------- TELA CHEIA ---------------- */
 // Importante: o Safari do iPhone/iPad NÃO suporta bem a API de tela cheia do
