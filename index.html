@@ -370,13 +370,13 @@
   /* Modo apresentação (tela cheia): esconde cabeçalhos para maximizar a leitura.
      Funciona em qualquer navegador, mesmo quando a API nativa de tela cheia
      não é suportada (ex: Safari no iPhone/iPad). */
-  body.presentation-mode header,
-  body.presentation-mode .song-header,
-  body.presentation-mode .toolbar{ display:none !important; }
-  /* A barra de abas continua visível em tela cheia para permitir navegar entre
-     as páginas sem sair do modo tela cheia. */
+  /* Modo apresentação (tela cheia): na tela de leitura da música, esconde o
+     cabeçalho para maximizar o espaço de leitura da cifra. Em todas as outras
+     páginas (Cifras, Listas, Pasta, Edição) o cabeçalho permanece visível —
+     assim dá para navegar pelo app inteiro (inclusive criar uma nova cifra)
+     sem precisar sair da tela cheia. */
+  body.presentation-mode .song-header{ display:none !important; }
   body.presentation-mode .chord-content{ padding-top:24px; }
-  body.presentation-mode .list{ padding-top:16px; }
 
   #fullscreen-icon-song svg{ width:18px; height:18px; display:block; margin:0 auto; }
 
@@ -401,6 +401,25 @@
   #fs-exit span{ display:flex; }
   #fs-exit svg{ width:17px; height:17px; display:block; }
   body.presentation-mode #fs-exit{ display:flex; animation:fadeIn .25s var(--ease) both; }
+
+  /* Botão flutuante para VOLTAR — só aparece na tela de leitura da música
+     quando em tela cheia, já que ali o cabeçalho (com o botão ←) fica oculto
+     para maximizar a área de leitura. Garante que dá para navegar de volta
+     à lista sem precisar sair da tela cheia. */
+  #fs-back{
+    display:none; position:fixed; z-index:45;
+    top:calc(12px + env(safe-area-inset-top)); left:14px;
+    align-items:center; justify-content:center;
+    width:40px; height:40px;
+    background:rgba(30,30,38,.82);
+    backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+    border:1px solid var(--line-strong); color:var(--text);
+    border-radius:50%; font-size:19px; cursor:pointer;
+    box-shadow:var(--shadow-2); transition:transform .16s var(--ease);
+  }
+  #fs-back:active{ transform:scale(.9); }
+  body.presentation-mode.fs-on-song #fs-back{ display:flex; animation:fadeIn .25s var(--ease) both; }
 
   /* Acessibilidade: respeita quem prefere menos movimento */
   @media (prefers-reduced-motion: reduce){
@@ -577,7 +596,8 @@ Santo, Santo Ele é"></textarea>
 
 <div class="toast" id="toast"></div>
 
-<!-- Botão flutuante de sair da tela cheia (aparece só no modo tela cheia) -->
+<!-- Botões flutuantes de navegação em tela cheia -->
+<button id="fs-back" onclick="backFromSong()" title="Voltar" aria-label="Voltar">←</button>
 <button id="fs-exit" onclick="toggleFullscreen()" title="Sair da tela cheia" aria-label="Sair da tela cheia"><span id="fs-exit-ic"></span>Sair</button>
 
 <script type="module">
@@ -807,6 +827,7 @@ function showScreen(name){
   if(name==='cifras') renderCifras();
   if(name==='listas') renderListas();
   stopAutoScroll();
+  updateFsBackVisibility();
 }
 
 /* ---------------- CIFRAS LIST ---------------- */
@@ -1282,11 +1303,15 @@ function stopAutoScroll(){
 function setScrollSpeed(v){ scrollSpeed = Number(v); }
 
 /* ---------------- TELA CHEIA ---------------- */
-// Importante: o Safari do iPhone/iPad NÃO suporta a API de tela cheia do navegador
-// para páginas comuns (só para <video>). Por isso, além de tentar a tela cheia nativa
-// (funciona no Android/Chrome/desktop), sempre aplicamos também um "modo apresentação"
-// em CSS que esconde a barra de cabeçalho e maximiza a área de leitura — isso funciona
-// em qualquer aparelho, inclusive iPhone.
+// Importante: o Safari do iPhone/iPad NÃO suporta bem a API de tela cheia do
+// navegador para páginas comuns (só para <video>), e em alguns casos ela pode
+// sair sozinha ao rolar a página. Por isso, no iOS/iPadOS usamos apenas o
+// "modo apresentação" em CSS (esconde o cabeçalho da música e maximiza a
+// leitura) sem depender da Fullscreen API nativa — assim, rolar a tela nunca
+// derruba a tela cheia. Em outros aparelhos (Android/desktop) ainda tentamos
+// também a tela cheia nativa do navegador, como reforço.
+const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
 let presentationMode = false;
 function isNativeFullscreen(){
   return !!(document.fullscreenElement || document.webkitFullscreenElement);
@@ -1294,21 +1319,24 @@ function isNativeFullscreen(){
 async function toggleFullscreen(){
   presentationMode = !presentationMode;
   document.body.classList.toggle('presentation-mode', presentationMode);
-  try{
-    if(presentationMode){
-      const el = document.documentElement;
-      if(el.requestFullscreen) await el.requestFullscreen();
-      else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen(); // Safari/iOS (sem efeito, ignorado se não suportado)
-    } else {
-      if(document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
-      else if(document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
+  if(!isIOSDevice){
+    try{
+      if(presentationMode){
+        const el = document.documentElement;
+        if(el.requestFullscreen) await el.requestFullscreen();
+        else if(el.webkitRequestFullscreen) el.webkitRequestFullscreen();
+      } else {
+        if(document.fullscreenElement && document.exitFullscreen) await document.exitFullscreen();
+        else if(document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
+      }
+    }catch(e){
+      // Tela cheia nativa pode falhar silenciosamente em alguns navegadores mobile;
+      // o modo apresentação em CSS já cobre esse caso, então não é necessário avisar o usuário.
+      console.warn('Fullscreen API indisponível, usando apenas modo apresentação em CSS.', e);
     }
-  }catch(e){
-    // Tela cheia nativa pode falhar silenciosamente em alguns navegadores mobile;
-    // o modo apresentação em CSS já cobre esse caso, então não é necessário avisar o usuário.
-    console.warn('Fullscreen API indisponível, usando apenas modo apresentação em CSS.', e);
   }
   updateFullscreenIcons();
+  updateFsBackVisibility();
 }
 function updateFullscreenIcons(){
   const on = presentationMode;
@@ -1323,22 +1351,21 @@ function updateFullscreenIcons(){
   const exitIc = document.getElementById('fs-exit-ic');
   if(exitIc) exitIc.innerHTML = ICON_MINIMIZE;
 }
-document.addEventListener('fullscreenchange', ()=>{
-  // Se o usuário sair da tela cheia nativa apertando ESC/gesto do sistema,
-  // sincroniza o modo apresentação também.
-  if(!isNativeFullscreen() && presentationMode){
-    presentationMode = false;
-    document.body.classList.remove('presentation-mode');
-    updateFullscreenIcons();
-  }
-});
-document.addEventListener('webkitfullscreenchange', ()=>{
-  if(!isNativeFullscreen() && presentationMode){
-    presentationMode = false;
-    document.body.classList.remove('presentation-mode');
-    updateFullscreenIcons();
-  }
-});
+// Mostra o botão flutuante "←" apenas quando a tela cheia está ativa E a
+// pessoa está lendo uma música (única tela cuja barra de topo, com o botão
+// de voltar, fica oculta no modo apresentação). Chamado sempre que a tela
+// muda (showScreen) e sempre que a tela cheia é ligada/desligada.
+function updateFsBackVisibility(){
+  const onSongScreen = !!document.getElementById('screen-song')?.classList.contains('active');
+  document.body.classList.toggle('fs-on-song', presentationMode && onSongScreen);
+}
+// Propositalmente NÃO sincronizamos mais o modo apresentação com o estado
+// nativo de tela cheia do navegador (fullscreenchange/webkitfullscreenchange).
+// Em iPads, o Safari pode sair da tela cheia nativa sozinho ao rolar a
+// página; se ficássemos escutando esse evento para desligar nosso modo
+// apresentação, a tela cheia do app seria encerrada sem o usuário pedir.
+// Agora o modo apresentação só é desligado por uma ação explícita da pessoa
+// (botão "Sair", botão de tela cheia no cabeçalho, ou o botão da música).
 
 /* ---------------- EDIT / NEW FORM ---------------- */
 const TOM_OPTIONS = ['C','C#','Db','D','D#','Eb','E','F','F#','Gb','G','G#','Ab','A','A#','Bb','B',
