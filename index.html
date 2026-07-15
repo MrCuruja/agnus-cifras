@@ -376,7 +376,7 @@
      assim dá para navegar pelo app inteiro (inclusive criar uma nova cifra)
      sem precisar sair da tela cheia. */
   body.presentation-mode .song-header{ display:none !important; }
-  body.presentation-mode .chord-content{ padding-top:24px; }
+  body.presentation-mode.fs-on-song .chord-content{ padding-top:calc(62px + env(safe-area-inset-top)); }
 
   #fullscreen-icon-song svg{ width:18px; height:18px; display:block; margin:0 auto; }
 
@@ -400,7 +400,12 @@
   #fs-exit:active{ transform:scale(.94); }
   #fs-exit span{ display:flex; }
   #fs-exit svg{ width:17px; height:17px; display:block; }
-  body.presentation-mode #fs-exit{ display:flex; animation:fadeIn .25s var(--ease) both; }
+  /* O botão flutuante "Sair" só aparece na tela de leitura da música, onde o
+     cabeçalho (e seu botão de tela cheia) fica oculto. Nas demais telas
+     (Cifras, Listas, Pasta, Edição) o cabeçalho continua visível e o próprio
+     botão de tela cheia do cabeçalho serve para sair — assim o botão flutuante
+     não fica na frente do "+" de criar cifra/lista. */
+  body.presentation-mode.fs-on-song #fs-exit{ display:flex; animation:fadeIn .25s var(--ease) both; }
 
   /* Botão flutuante para VOLTAR — só aparece na tela de leitura da música
      quando em tela cheia, já que ali o cabeçalho (com o botão ←) fica oculto
@@ -1310,8 +1315,19 @@ function setScrollSpeed(v){ scrollSpeed = Number(v); }
 // leitura) sem depender da Fullscreen API nativa — assim, rolar a tela nunca
 // derruba a tela cheia. Em outros aparelhos (Android/desktop) ainda tentamos
 // também a tela cheia nativa do navegador, como reforço.
-const isIOSDevice = /iPad|iPhone|iPod/.test(navigator.userAgent) ||
-  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const isIOSDevice = (() => {
+  const ua = navigator.userAgent || '';
+  // iPhone / iPad / iPod clássicos
+  if(/iPad|iPhone|iPod/.test(ua)) return true;
+  // Chrome / Firefox / Edge rodando no iOS/iPadOS (todos usam WebKit por baixo)
+  if(/CriOS|FxiOS|EdgiOS/.test(ua)) return true;
+  const touch = (navigator.maxTouchPoints || 0) > 1;
+  // iPadOS costuma se identificar como "Macintosh"; diferenciamos de um Mac
+  // real pela presença de tela sensível ao toque.
+  if(/Macintosh/.test(ua) && touch) return true;
+  if((navigator.platform === 'MacIntel' || navigator.platform === 'iPad') && touch) return true;
+  return false;
+})();
 let presentationMode = false;
 function isNativeFullscreen(){
   return !!(document.fullscreenElement || document.webkitFullscreenElement);
