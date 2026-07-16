@@ -338,6 +338,92 @@
   }
   .toast.show{opacity:1; transform:translate(-50%,0);}
 
+  /* ---------- Capas (thumbs com imagem) ---------- */
+  .thumb.has-img{background:#000;}
+  .thumb img.cover-img{width:100%; height:100%; object-fit:cover; border-radius:inherit;}
+  .row .thumb{position:relative;}
+
+  /* Campo de artista com sugestões (autocomplete) */
+  .autocomplete{position:relative;}
+  .ac-list{
+    position:absolute; left:0; right:0; top:calc(100% + 6px); z-index:30;
+    background:var(--bg-elev-2); border:1px solid var(--line-strong); border-radius:14px;
+    box-shadow:var(--shadow-2); overflow:hidden; max-height:230px; overflow-y:auto; display:none;
+  }
+  .ac-list.show{display:block; animation:fadeIn .16s var(--ease) both;}
+  .ac-item{
+    display:flex; align-items:center; gap:10px; padding:10px 13px; cursor:pointer;
+    border-bottom:1px solid var(--line); font-size:15px;
+  }
+  .ac-item:last-child{border-bottom:none;}
+  .ac-item:active,.ac-item.hl{background:var(--accent-soft);}
+  .ac-avatar{
+    width:30px; height:30px; border-radius:9px; flex-shrink:0; overflow:hidden;
+    background:linear-gradient(150deg,#26262f,#191920); display:flex; align-items:center;
+    justify-content:center; font-size:13px; color:var(--accent); font-weight:700;
+  }
+  .ac-avatar img{width:100%; height:100%; object-fit:cover;}
+  .ac-item .ac-new{color:var(--accent); font-weight:600;}
+
+  /* Campo de capa no formulário */
+  .cover-field{display:flex; align-items:center; gap:14px; margin-top:6px;}
+  .cover-preview{
+    width:74px; height:74px; border-radius:16px; flex-shrink:0; overflow:hidden;
+    background:linear-gradient(150deg,#26262f,#191920); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:26px; color:var(--accent);
+  }
+  .cover-preview img{width:100%; height:100%; object-fit:cover;}
+  .cover-actions{display:flex; flex-direction:column; gap:8px; flex:1;}
+  .btn-sm{
+    padding:10px 14px; border-radius:12px; border:1px solid var(--line-strong);
+    background:var(--bg-elev); color:var(--text); font-size:14px; font-weight:600; cursor:pointer;
+    transition:transform .16s var(--ease), background .18s var(--ease);
+  }
+  .btn-sm:active{transform:scale(.96); background:var(--bg-elev-2);}
+  .btn-sm.accent{border-color:var(--accent-ring); color:#ffb9b3; background:var(--accent-soft);}
+  .btn-sm.danger-txt{color:var(--danger); border-color:rgba(255,91,96,.4);}
+
+  /* Grade de resultados de busca de capa */
+  .cover-search-input{display:flex; gap:8px; margin-bottom:12px;}
+  .cover-search-input input{flex:1;}
+  .cover-grid{
+    display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-height:46vh;
+    overflow-y:auto; margin:4px 0 6px; padding:2px;
+  }
+  .cover-cell{
+    position:relative; aspect-ratio:1/1; border-radius:14px; overflow:hidden; cursor:pointer;
+    background:var(--bg-elev-2); border:1px solid var(--line);
+    transition:transform .16s var(--ease), border-color .18s var(--ease);
+  }
+  .cover-cell:active{transform:scale(.95);}
+  .cover-cell.sel{border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft);}
+  .cover-cell img{width:100%; height:100%; object-fit:cover; display:block;}
+  .cover-cell .cap{
+    position:absolute; left:0; right:0; bottom:0; padding:14px 7px 5px; font-size:10px;
+    color:#fff; background:linear-gradient(transparent, rgba(0,0,0,.8)); line-height:1.2;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .cover-status{font-size:13px; color:var(--text-dim); text-align:center; padding:22px 0;}
+  .cover-spinner{
+    width:26px; height:26px; margin:0 auto 10px; border-radius:50%;
+    border:3px solid var(--line-strong); border-top-color:var(--accent);
+    animation:spin 1s linear infinite;
+  }
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  /* Tela de artistas */
+  .artist-hero{
+    display:flex; align-items:center; gap:16px; padding:8px 18px 14px;
+  }
+  .artist-hero .big-avatar{
+    width:84px; height:84px; border-radius:22px; overflow:hidden; flex-shrink:0;
+    background:linear-gradient(150deg,#26262f,#191920); border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center; font-size:34px; color:var(--accent);
+  }
+  .artist-hero .big-avatar img{width:100%; height:100%; object-fit:cover;}
+  .artist-hero .meta h2{margin:0 0 3px; font-size:22px; letter-spacing:-0.02em;}
+  .artist-hero .meta .sub{color:var(--text-dim); font-size:14px;}
+
   /* ---------- Indicador de sincronização ---------- */
   .sync-dot{width:9px; height:9px; border-radius:50%; background:#33c65f; display:inline-block; margin-right:4px; flex-shrink:0; box-shadow:0 0 0 3px rgba(51,198,95,.16);}
   .sync-dot.off{background:#ff5b60; box-shadow:0 0 0 3px rgba(255,91,96,.16);}
@@ -537,6 +623,10 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
       Listas
     </button>
+    <button onclick="goToTab('artistas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+      Artistas
+    </button>
   </nav>
 </div>
 
@@ -559,7 +649,58 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
       Listas
     </button>
+    <button onclick="goToTab('artistas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+      Artistas
+    </button>
   </nav>
+</div>
+
+<!-- ===================== ARTISTAS SCREEN ===================== -->
+<div class="screen" id="screen-artistas">
+  <header>
+    <div class="title">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+      Artistas
+    </div>
+    <div class="actions">
+      <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
+      <button class="icon-btn" onclick="openEditArtist(null)" title="Cadastrar artista">＋</button>
+    </div>
+  </header>
+  <div class="toolbar">
+    <div class="search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="artistas-search" placeholder="Buscar artista..." oninput="renderArtistas()">
+    </div>
+  </div>
+  <div class="list" id="artistas-list"></div>
+  <nav class="bottom">
+    <button onclick="goToTab('cifras')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Cifras
+    </button>
+    <button onclick="goToTab('listas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Listas
+    </button>
+    <button class="active" onclick="goToTab('artistas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+      Artistas
+    </button>
+  </nav>
+</div>
+
+<!-- ===================== ARTIST VIEW SCREEN ===================== -->
+<div class="screen" id="screen-artist">
+  <div class="folder-header">
+    <button class="back-btn" onclick="history.back()">←</button>
+    <h2 id="artist-title" style="flex:1;">Artista</h2>
+    <button class="icon-btn" onclick="editCurrentArtist()" title="Editar artista">✎</button>
+    <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
+  </div>
+  <div class="artist-hero" id="artist-hero"></div>
+  <div class="list" id="artist-songs" style="padding-top:4px;"></div>
 </div>
 
 <!-- ===================== FOLDER VIEW SCREEN ===================== -->
@@ -618,7 +759,21 @@
     <label>Título da música</label>
     <input type="text" id="f-title" placeholder="Ex: Canção do Apocalipse">
     <label>Artista / Versão</label>
-    <input type="text" id="f-artist" placeholder="Ex: Nova Semente / Versão Agnus">
+    <div class="autocomplete">
+      <input type="text" id="f-artist" placeholder="Ex: Nova Semente / Versão Agnus" autocomplete="off"
+             oninput="onArtistInput()" onfocus="onArtistInput()" onblur="hideArtistSuggestionsSoon()">
+      <div class="ac-list" id="artist-ac"></div>
+    </div>
+    <label>Capa da cifra</label>
+    <div class="cover-field">
+      <div class="cover-preview" id="f-cover-preview">🎵</div>
+      <div class="cover-actions">
+        <button type="button" class="btn-sm accent" onclick="openCoverSearch()">🔎 Buscar capa na web</button>
+        <button type="button" class="btn-sm" onclick="openCoverUrl()">Colar link da imagem</button>
+        <button type="button" class="btn-sm danger-txt" id="f-cover-remove" style="display:none;" onclick="clearCover()">Remover capa</button>
+      </div>
+    </div>
+    <input type="hidden" id="f-cover">
     <label>Tom</label>
     <select id="f-tom"></select>
     <label>Pastas / Listas</label>
@@ -680,6 +835,7 @@ let db = null;
 let auth = null;
 let unsubFolders = null;
 let unsubSongs = null;
+let unsubArtists = null;
 
 if(isConfigured){
   const app = initializeApp(firebaseConfig);
@@ -698,8 +854,10 @@ const ICON_MINIMIZE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor
 
 let songs = [];
 let folders = [];
+let artists = [];
 let currentSongId = null;
 let currentFolderId = null;
+let currentArtistId = null;
 let currentTranspose = 0;
 let cameFrom = 'cifras';
 let fontSize = 15;
@@ -725,7 +883,7 @@ if(auth){
       showScreen('cifras');
     } else {
       stopListeners();
-      songs = []; folders = [];
+      songs = []; folders = []; artists = [];
       document.getElementById('login-overlay').style.display = 'flex';
     }
   });
@@ -782,15 +940,24 @@ function startListeners(){
     onDataChanged();
     setSyncDot('on');
   }, err=>{ console.error(err); setSyncDot('off'); toast('Erro ao conectar ao Firebase'); });
+
+  unsubArtists = onSnapshot(collection(db,'artists'), snap=>{
+    artists = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    onDataChanged();
+    setSyncDot('on');
+  }, err=>{ console.error(err); setSyncDot('off'); });
 }
 function stopListeners(){
   if(unsubFolders){ unsubFolders(); unsubFolders = null; }
   if(unsubSongs){ unsubSongs(); unsubSongs = null; }
+  if(unsubArtists){ unsubArtists(); unsubArtists = null; }
 }
 
 function onDataChanged(){
   if(isActive('cifras')) renderCifras();
   if(isActive('listas')) renderListas();
+  if(isActive('artistas')) renderArtistas();
+  if(isActive('artist') && currentArtistId) openArtist(currentArtistId, {stay:true});
   if(isActive('folder') && currentFolderId) openFolder(currentFolderId, {stay:true});
   if(isActive('song') && currentSongId){
     const s = songs.find(x=>x.id===currentSongId);
@@ -820,6 +987,12 @@ function restoreNavState(state){
   stopAutoScroll();
   if(!state || !state.screen || state.screen==='cifras'){ showScreen('cifras'); return; }
   if(state.screen==='listas'){ showScreen('listas'); return; }
+  if(state.screen==='artistas'){ showScreen('artistas'); return; }
+  if(state.screen==='artist'){
+    if(state.artistId){ openArtist(state.artistId, {skipHistory:true}); }
+    else { _openArtistView(null, state.artistName||'', {skipHistory:true}); }
+    return;
+  }
   if(state.screen==='folder'){ openFolder(state.folderId, {skipHistory:true}); return; }
   if(state.screen==='song'){
     currentSongId = state.songId;
@@ -866,17 +1039,44 @@ function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
   document.querySelectorAll('nav.bottom button').forEach(b=>b.classList.remove('active'));
-  if(name==='cifras'||name==='listas'){
+  if(name==='cifras'||name==='listas'||name==='artistas'){
     document.querySelectorAll('nav.bottom').forEach(nav=>{
       nav.querySelectorAll('button').forEach(b=>{
-        if(b.textContent.trim().toLowerCase().startsWith(name==='cifras'?'cifras':'listas')) b.classList.add('active');
+        if(b.textContent.trim().toLowerCase().startsWith(name)) b.classList.add('active');
       });
     });
   }
   if(name==='cifras') renderCifras();
   if(name==='listas') renderListas();
+  if(name==='artistas') renderArtistas();
   stopAutoScroll();
   updateFsBackVisibility();
+}
+
+/* ---------------- CAPAS & ARTISTAS (helpers) ---------------- */
+// Normaliza um nome de artista para comparação (sem diferenciar maiúsculas).
+function normName(s){ return (s||'').trim().toLowerCase(); }
+// Procura um artista cadastrado pelo nome (usado para herdar a capa do artista).
+function artistByName(name){
+  const n = normName(name);
+  if(!n) return null;
+  return artists.find(a=>normName(a.name)===n) || null;
+}
+// Capa efetiva de uma cifra: a capa própria dela, ou — se não tiver — a capa
+// do artista cadastrado com o mesmo nome.
+function getSongCover(s){
+  if(s && s.cover) return s.cover;
+  const a = artistByName(s && s.artist);
+  return (a && a.cover) ? a.cover : '';
+}
+// Monta o quadradinho de capa (thumb). Se a imagem falhar ao carregar, cai
+// de volta para o emoji.
+function coverThumb(cover, emoji){
+  emoji = emoji || '🎵';
+  if(cover){
+    return `<div class="thumb has-img"><img class="cover-img" src="${escapeHtml(cover)}" alt="" loading="lazy" onerror="this.parentNode.classList.remove('has-img'); this.parentNode.textContent='${emoji}';"></div>`;
+  }
+  return `<div class="thumb">${emoji}</div>`;
 }
 
 /* ---------------- CIFRAS LIST ---------------- */
@@ -893,7 +1093,7 @@ function renderCifras(){
   }
   list.innerHTML = items.map(s=>`
     <div class="row" onclick="openSong('${s.id}')">
-      <div class="thumb">🎵</div>
+      ${coverThumb(getSongCover(s))}
       <div class="info">
         <div class="name">${escapeHtml(s.title)}</div>
         <div class="sub">${escapeHtml(s.artist||'')}</div>
@@ -939,7 +1139,7 @@ function openFolder(id, opts){
   } else {
     list.innerHTML = items.map(s=>`
       <div class="row" onclick="openSong('${s.id}')">
-        <div class="thumb">🎵</div>
+        ${coverThumb(getSongCover(s))}
         <div class="info"><div class="name">${escapeHtml(s.title)}</div><div class="sub">${escapeHtml(s.artist||'')}</div></div>
         <div class="tom">${escapeHtml(getDisplayTom(s.tom, s.transpose))}</div>
       </div>`).join('');
@@ -1482,6 +1682,320 @@ function renderFolderChecks(selected){
   }
   wrap.innerHTML = folders.map(f=>`<div class="folder-chip ${selected.includes(f.id)?'sel':''}" data-fid="${f.id}" onclick="this.classList.toggle('sel')">${escapeHtml(f.name)}</div>`).join('');
 }
+/* =========================================================================
+   CAPA DA CIFRA (busca de imagem na web) + AUTOCOMPLETE DE ARTISTA
+   ========================================================================= */
+
+// --- Campo de capa no formulário de cifra ---
+function setCoverField(url){
+  document.getElementById('f-cover').value = url || '';
+  const prev = document.getElementById('f-cover-preview');
+  const rm = document.getElementById('f-cover-remove');
+  if(url){
+    prev.innerHTML = `<img src="${escapeHtml(url)}" alt="">`;
+    rm.style.display = 'block';
+  } else {
+    prev.textContent = '🎵';
+    rm.style.display = 'none';
+  }
+}
+function clearCover(){ setCoverField(''); }
+function openCoverUrl(){
+  const url = prompt('Cole o endereço (URL) da imagem da capa:');
+  if(url && url.trim()) setCoverField(url.trim());
+}
+
+// --- Busca de capas na web (iTunes Search API, via JSONP, sem chave/API key) ---
+let _jsonpSeq = 0;
+function jsonp(url){
+  return new Promise((resolve, reject)=>{
+    const cb = '__cover_cb_' + (++_jsonpSeq);
+    const sep = url.includes('?') ? '&' : '?';
+    const script = document.createElement('script');
+    let done = false;
+    const cleanup = ()=>{ try{ delete window[cb]; }catch(e){ window[cb]=undefined; } script.remove(); };
+    const timer = setTimeout(()=>{ if(!done){ done=true; cleanup(); reject(new Error('timeout')); } }, 9000);
+    window[cb] = (data)=>{ done=true; clearTimeout(timer); cleanup(); resolve(data); };
+    script.onerror = ()=>{ if(!done){ done=true; clearTimeout(timer); cleanup(); reject(new Error('network')); } };
+    script.src = url + sep + 'callback=' + cb;
+    document.head.appendChild(script);
+  });
+}
+async function itunesCovers(term){
+  const base = 'https://itunes.apple.com/search?media=music&entity=musicTrack&limit=24&country=BR&term=';
+  const data = await jsonp(base + encodeURIComponent(term));
+  const seen = new Set(); const out = [];
+  (data.results||[]).forEach(r=>{
+    let art = r.artworkUrl100 || r.artworkUrl60;
+    if(!art) return;
+    // Aumenta a resolução da capa (100x100 -> 600x600).
+    art = art.replace(/\/\d+x\d+bb\./, '/600x600bb.');
+    if(seen.has(art)) return; seen.add(art);
+    out.push({ url: art, title: r.trackName || r.collectionName || '', artist: r.artistName || '' });
+  });
+  return out;
+}
+
+let coverTarget = 'song'; // 'song' (formulário de cifra) ou 'artist' (modal de artista)
+function openCoverSearch(target){
+  coverTarget = target || 'song';
+  let term = '';
+  if(coverTarget === 'artist'){
+    term = (artistDraft && artistDraft.name ? artistDraft.name : '').trim();
+  } else {
+    const t = document.getElementById('f-title').value.trim();
+    const a = document.getElementById('f-artist').value.trim();
+    term = (a + ' ' + t).trim();
+  }
+  showModal(`
+    <h3>Buscar capa na web</h3>
+    <div class="cover-search-input">
+      <input type="text" id="cover-q" placeholder="Ex: Kleber Lucas Te Agradeço" value="${escapeHtml(term)}"
+             onkeydown="if(event.key==='Enter'){event.preventDefault(); runCoverSearch();}">
+      <button class="btn primary" style="flex:0 0 auto; padding:0 18px;" onclick="runCoverSearch()">Buscar</button>
+    </div>
+    <div class="cover-grid" id="cover-grid"></div>
+    <div class="row-btns"><button class="btn ghost" onclick="closeCoverSearch()">${coverTarget==='artist'?'Voltar':'Fechar'}</button></div>
+  `);
+  const grid = document.getElementById('cover-grid');
+  if(term){ runCoverSearch(); }
+  else { grid.innerHTML = '<div class="cover-status">Digite o artista e a música e toque em Buscar.</div>'; }
+  setTimeout(()=>{ const el=document.getElementById('cover-q'); if(el) el.focus(); }, 60);
+}
+async function runCoverSearch(){
+  const qEl = document.getElementById('cover-q');
+  const grid = document.getElementById('cover-grid');
+  if(!grid) return;
+  const q = (qEl?.value || '').trim();
+  if(!q){ grid.innerHTML = '<div class="cover-status">Digite algo para buscar.</div>'; return; }
+  grid.innerHTML = '<div class="cover-status"><div class="cover-spinner"></div>Buscando capas...</div>';
+  try{
+    const res = await itunesCovers(q);
+    if(!res.length){
+      grid.innerHTML = '<div class="cover-status">Nenhuma capa encontrada. Tente outro termo, ou use "Colar link da imagem".</div>';
+      return;
+    }
+    grid.innerHTML = res.map(r=>`
+      <div class="cover-cell" onclick="chooseCover('${encodeURIComponent(r.url)}')">
+        <img src="${escapeHtml(r.url)}" alt="" loading="lazy">
+        <div class="cap">${escapeHtml(r.title || r.artist)}</div>
+      </div>`).join('');
+  }catch(e){
+    console.error(e);
+    grid.innerHTML = '<div class="cover-status">Não foi possível buscar agora (verifique a conexão). Você pode colar um link de imagem em vez disso.</div>';
+  }
+}
+function chooseCover(encUrl){
+  const url = decodeURIComponent(encUrl);
+  if(coverTarget === 'artist'){ artistDraft.cover = url; renderArtistModal(); }
+  else { setCoverField(url); closeModal(); }
+  toast('Capa selecionada');
+}
+function closeCoverSearch(){
+  if(coverTarget === 'artist'){ renderArtistModal(); }
+  else { closeModal(); }
+}
+
+// --- Autocomplete do campo de artista (sugere artistas já salvos) ---
+function allArtistNames(){
+  const map = new Map();
+  artists.forEach(a=>{ const k=normName(a.name); if(k) map.set(k, {name:a.name, cover:a.cover||''}); });
+  songs.forEach(s=>{ const k=normName(s.artist); if(k && !map.has(k)) map.set(k, {name:(s.artist||'').trim(), cover:''}); });
+  return Array.from(map.values());
+}
+function onArtistInput(){
+  const inp = document.getElementById('f-artist');
+  const box = document.getElementById('artist-ac');
+  const q = normName(inp.value);
+  let arr = allArtistNames();
+  if(q) arr = arr.filter(a=>normName(a.name).includes(q));
+  arr.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  arr = arr.slice(0,6);
+  if(arr.length===0){ box.classList.remove('show'); box.innerHTML=''; return; }
+  box.innerHTML = arr.map(a=>{
+    const av = a.cover ? `<img src="${escapeHtml(a.cover)}" alt="">` : escapeHtml((a.name||'?').charAt(0).toUpperCase());
+    return `<div class="ac-item" onmousedown="event.preventDefault(); pickArtist('${encodeURIComponent(a.name)}')">
+      <div class="ac-avatar">${av}</div><div>${escapeHtml(a.name)}</div></div>`;
+  }).join('');
+  box.classList.add('show');
+}
+function pickArtist(encName){
+  document.getElementById('f-artist').value = decodeURIComponent(encName);
+  hideArtistSuggestions();
+}
+function hideArtistSuggestions(){
+  const box = document.getElementById('artist-ac');
+  if(box) box.classList.remove('show');
+}
+function hideArtistSuggestionsSoon(){ setTimeout(hideArtistSuggestions, 150); }
+
+/* =========================================================================
+   ARTISTAS: cadastro, listagem e categorização
+   ========================================================================= */
+let currentArtistName = '';
+let artistDraft = null;
+
+function ensureArtistRegistered(name){
+  if(!db) return;
+  const n = normName(name);
+  if(!n) return;
+  if(artists.some(a=>normName(a.name)===n)) return;
+  addDoc(collection(db,'artists'), { name: name.trim(), cover:'', updatedAt: Date.now() }).catch(e=>console.error(e));
+}
+function artistSongs(name){
+  const n = normName(name);
+  return songs.filter(s=>normName(s.artist)===n).sort((a,b)=>(a.title||'').localeCompare(b.title||'','pt-BR'));
+}
+
+function renderArtistas(){
+  const q = (document.getElementById('artistas-search').value||'').toLowerCase().trim();
+  const list = document.getElementById('artistas-list');
+  // Junta artistas cadastrados + artistas que aparecem nas cifras.
+  const map = new Map();
+  artists.forEach(a=>{ const k=normName(a.name); if(k) map.set(k,{id:a.id, name:a.name, cover:a.cover||''}); });
+  songs.forEach(s=>{ const k=normName(s.artist); if(k && !map.has(k)) map.set(k,{id:null, name:(s.artist||'').trim(), cover:''}); });
+  let items = Array.from(map.values());
+  if(q) items = items.filter(a=>a.name.toLowerCase().includes(q));
+  items.sort((a,b)=>a.name.localeCompare(b.name,'pt-BR'));
+  if(items.length===0){
+    list.innerHTML = `<div class="empty-state"><div style="font-size:40px;">🎤</div>
+      <div>${q?'Nenhum artista encontrado.':'Nenhum artista ainda. Cadastre um artista ou salve uma cifra.'}</div>
+      ${q?'':'<button class="cta" onclick="openEditArtist(null)">Cadastrar artista</button>'}</div>`;
+    return;
+  }
+  list.innerHTML = items.map(a=>{
+    const count = songs.filter(s=>normName(s.artist)===normName(a.name)).length;
+    const openArg = a.id ? `openArtist('${a.id}')` : `openArtistByName('${encodeURIComponent(a.name)}')`;
+    const editArg = a.id ? `openEditArtist('${a.id}')` : `openEditArtistByName('${encodeURIComponent(a.name)}')`;
+    return `<div class="row" onclick="${openArg}">
+      ${coverThumb(a.cover,'🎤')}
+      <div class="info"><div class="name">${escapeHtml(a.name)}</div>
+        <div class="sub">${count} ${count===1?'cifra':'cifras'}${a.id?'':' · não cadastrado'}</div></div>
+      <div class="kebab" onclick="event.stopPropagation(); ${editArg}">⋮</div>
+    </div>`;
+  }).join('');
+}
+
+function openArtist(id, opts){
+  const a = artists.find(x=>x.id===id);
+  if(!a){ showScreen('artistas'); return; }
+  _openArtistView(id, a.name, opts||{});
+}
+function openArtistByName(encName){
+  const name = decodeURIComponent(encName);
+  const a = artistByName(name);
+  _openArtistView(a?a.id:null, a?a.name:name, {});
+}
+function _openArtistView(id, name, opts){
+  opts = opts || {};
+  currentArtistId = id;
+  currentArtistName = name;
+  const a = id ? artists.find(x=>x.id===id) : artistByName(name);
+  const cover = a && a.cover ? a.cover : '';
+  const list = artistSongs(name);
+  document.getElementById('artist-title').textContent = name;
+  const avatar = cover ? `<img src="${escapeHtml(cover)}" alt="">` : '🎤';
+  document.getElementById('artist-hero').innerHTML = `
+    <div class="big-avatar">${avatar}</div>
+    <div class="meta"><h2>${escapeHtml(name)}</h2>
+      <div class="sub">${list.length} ${list.length===1?'cifra':'cifras'}${a?'':' · toque em ✎ para cadastrar'}</div></div>`;
+  const songsEl = document.getElementById('artist-songs');
+  if(list.length===0){
+    songsEl.innerHTML = `<div class="empty-state"><div style="font-size:40px;">🎼</div><div>Nenhuma cifra deste artista ainda.</div></div>`;
+  } else {
+    songsEl.innerHTML = list.map(s=>`
+      <div class="row" onclick="openSong('${s.id}')">
+        ${coverThumb(getSongCover(s))}
+        <div class="info"><div class="name">${escapeHtml(s.title)}</div><div class="sub">${escapeHtml(s.artist||'')}</div></div>
+        <div class="tom">${escapeHtml(getDisplayTom(s.tom, s.transpose))}</div>
+      </div>`).join('');
+  }
+  if(!opts.stay){
+    showScreen('artist');
+    if(!opts.skipHistory) pushNavState({screen:'artist', artistId:id, artistName:name});
+  }
+}
+function editCurrentArtist(){
+  if(currentArtistId){ openEditArtist(currentArtistId); }
+  else { artistDraft = {id:null, name: currentArtistName||'', cover:''}; renderArtistModal(); }
+}
+
+// --- Cadastro / edição de artista (modal) ---
+function openEditArtist(id){
+  const a = id ? artists.find(x=>x.id===id) : null;
+  artistDraft = { id: id||null, name: a ? (a.name||'') : '', cover: a ? (a.cover||'') : '' };
+  renderArtistModal();
+}
+function openEditArtistByName(encName){
+  const name = decodeURIComponent(encName);
+  const a = artistByName(name);
+  if(a){ openEditArtist(a.id); }
+  else { artistDraft = {id:null, name:name, cover:''}; renderArtistModal(); }
+}
+function renderArtistModal(){
+  const d = artistDraft || {id:null, name:'', cover:''};
+  const cov = d.cover ? `<img src="${escapeHtml(d.cover)}" alt="">` : '🎤';
+  showModal(`
+    <h3>${d.id ? 'Editar artista' : 'Cadastrar artista'}</h3>
+    <label style="margin-top:0;">Nome do artista</label>
+    <input type="text" id="artist-name-input" placeholder="Ex: Kleber Lucas" value="${escapeHtml(d.name)}" oninput="setArtistDraftName(this.value)">
+    <label>Foto / capa do artista</label>
+    <div class="cover-field">
+      <div class="cover-preview" id="artist-cover-preview">${cov}</div>
+      <div class="cover-actions">
+        <button type="button" class="btn-sm accent" onclick="openCoverSearch('artist')">🔎 Buscar na web</button>
+        <button type="button" class="btn-sm" onclick="openArtistCoverUrl()">Colar link da imagem</button>
+        ${d.cover ? '<button type="button" class="btn-sm danger-txt" onclick="removeArtistDraftCover()">Remover foto</button>' : ''}
+      </div>
+    </div>
+    <div class="row-btns" style="margin-top:18px;">
+      ${d.id ? `<button class="btn danger" onclick="deleteArtist('${d.id}')">Excluir</button>` : ''}
+      <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn primary" onclick="saveArtist()">Salvar</button>
+    </div>
+  `);
+  setTimeout(()=>{ const el=document.getElementById('artist-name-input'); if(el && !d.name) el.focus(); }, 60);
+}
+function setArtistDraftName(v){ if(artistDraft) artistDraft.name = v; }
+function removeArtistDraftCover(){ if(artistDraft){ artistDraft.cover=''; renderArtistModal(); } }
+function openArtistCoverUrl(){
+  const url = prompt('Cole o endereço (URL) da imagem:');
+  if(url && url.trim()){ artistDraft.cover = url.trim(); }
+  renderArtistModal();
+}
+async function saveArtist(){
+  if(!db){ toast('Configure o Firebase primeiro'); return; }
+  const name = (artistDraft.name||'').trim();
+  if(!name){ toast('Digite o nome do artista'); return; }
+  const dup = artists.find(a=>normName(a.name)===normName(name) && a.id!==artistDraft.id);
+  const data = { name, cover: (artistDraft.cover||''), updatedAt: Date.now() };
+  try{
+    if(artistDraft.id){ await updateDoc(doc(db,'artists',artistDraft.id), data); }
+    else if(dup){ await updateDoc(doc(db,'artists',dup.id), data); }
+    else { await addDoc(collection(db,'artists'), data); }
+    closeModal(); toast('Artista salvo');
+  }catch(e){ console.error(e); toast('Erro ao salvar artista'); }
+}
+function deleteArtist(id){
+  showModal(`
+    <h3>Excluir artista?</h3>
+    <p style="color:var(--text-dim); font-size:14px;">Isso remove o artista da lista. As cifras continuam salvas (apenas deixam de herdar a foto dele).</p>
+    <div class="row-btns">
+      <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+      <button class="btn danger" onclick="confirmDeleteArtist('${id}')">Excluir</button>
+    </div>
+  `);
+}
+async function confirmDeleteArtist(id){
+  if(!db) return;
+  try{
+    await deleteDoc(doc(db,'artists',id));
+    closeModal();
+    if(isActive('artist') && currentArtistId===id){ history.back(); }
+    toast('Artista excluído');
+  }catch(e){ console.error(e); toast('Erro ao excluir'); }
+}
+
 function openEdit(id, opts){
   opts = opts || {};
   currentSongId = id;
@@ -1498,6 +2012,7 @@ function openEdit(id, opts){
     document.getElementById('f-artist').value = s.artist||'';
     tomSel.value = s.tom||'C';
     document.getElementById('f-content').value = s.content||'';
+    setCoverField(s.cover||'');
     renderFolderChecks(s.folders||[]);
     document.getElementById('delete-btn').style.display = 'block';
   } else {
@@ -1506,9 +2021,11 @@ function openEdit(id, opts){
     document.getElementById('f-artist').value = '';
     tomSel.value = 'C';
     document.getElementById('f-content').value = '';
+    setCoverField('');
     renderFolderChecks(currentFolderId ? [currentFolderId] : []);
     document.getElementById('delete-btn').style.display = 'none';
   }
+  hideArtistSuggestions();
   showScreen('edit');
   if(!opts.skipHistory) pushNavState({screen:'edit', songId:id||null, cameFrom});
 }
@@ -1523,8 +2040,9 @@ async function saveSong(){
   const artist = document.getElementById('f-artist').value.trim();
   const tom = document.getElementById('f-tom').value;
   const content = document.getElementById('f-content').value;
+  const cover = document.getElementById('f-cover').value.trim();
   const selFolders = Array.from(document.querySelectorAll('#f-folders .folder-chip.sel')).map(el=>el.dataset.fid);
-  const data = {title, artist, tom, content, folders: selFolders, updatedAt: Date.now()};
+  const data = {title, artist, tom, content, cover, folders: selFolders, updatedAt: Date.now()};
   const btn = document.getElementById('save-btn');
   btn.disabled = true; btn.textContent = 'Salvando...';
   try{
@@ -1534,6 +2052,9 @@ async function saveSong(){
       const ref = await addDoc(collection(db,'songs'), data);
       currentSongId = ref.id;
     }
+    // Cadastra automaticamente o artista (se ainda não existir), para que ele
+    // fique salvo e categorizado na aba "Artistas".
+    ensureArtistRegistered(artist);
     toast('Cifra salva');
     // Substitui (em vez de empilhar) a entrada da tela de edição pela da cifra
     // salva: o botão voltar continua levando para onde a edição foi aberta.
@@ -1636,7 +2157,13 @@ Object.assign(window, {
   adjustFont, openSongMenu, openSongMenuFor, manageSongFolders, confirmSongFolders,
   toggleAutoScroll, setScrollSpeed, openEdit, cancelEdit, saveSong, deleteCurrentSong,
   confirmDeleteSong, openImportExport, exportFile, closeModal, toggleFullscreen, openAppMenu,
-  doLogin, doForgotPassword, doLogout
+  doLogin, doForgotPassword, doLogout,
+  // Capa da cifra + artistas
+  renderArtistas, openArtist, openArtistByName, openEditArtist, openEditArtistByName,
+  editCurrentArtist, renderArtistModal, saveArtist, deleteArtist, confirmDeleteArtist,
+  setArtistDraftName, removeArtistDraftCover, openArtistCoverUrl,
+  setCoverField, clearCover, openCoverUrl, openCoverSearch, runCoverSearch, chooseCover, closeCoverSearch,
+  onArtistInput, pickArtist, hideArtistSuggestions, hideArtistSuggestionsSoon
 });
 window.currentSongId = null;
 Object.defineProperty(window, 'currentSongId', {
