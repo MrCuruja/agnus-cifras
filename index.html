@@ -1254,7 +1254,6 @@ function adjustFont(delta){
 function openSongMenu(){
   showModal(`
     <div class="action-sheet">
-      <button onclick="closeModal(); openEdit(currentSongId)">Editar cifra</button>
       <button onclick="closeModal(); manageSongFolders(currentSongId)">Adicionar a lista</button>
       <button class="danger" onclick="deleteCurrentSong()">Excluir cifra</button>
     </div>
@@ -1571,7 +1570,6 @@ async function confirmDeleteSong(){
 function openAppMenu(){
   showModal(`
     <div class="action-sheet">
-      <button onclick="closeModal(); toggleFullscreen();">${presentationMode ? 'Sair da tela cheia' : 'Tela cheia'}</button>
       <button onclick="closeModal(); openImportExport();">Backup</button>
       <button class="danger" onclick="closeModal(); doLogout();">Sair da conta</button>
     </div>
