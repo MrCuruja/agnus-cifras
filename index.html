@@ -883,7 +883,7 @@ if(auth){
       showScreen('cifras');
     } else {
       stopListeners();
-      songs = []; folders = []; artists = [];
+      songs = []; folders = []; artists = []; artistCoverMap = new Map();
       document.getElementById('login-overlay').style.display = 'flex';
     }
   });
@@ -943,6 +943,7 @@ function startListeners(){
 
   unsubArtists = onSnapshot(collection(db,'artists'), snap=>{
     artists = snap.docs.map(d=>({id:d.id, ...d.data()}));
+    rebuildArtistCoverMap();
     onDataChanged();
     setSyncDot('on');
   }, err=>{ console.error(err); setSyncDot('off'); });
@@ -957,7 +958,7 @@ function onDataChanged(){
   if(isActive('cifras')) renderCifras();
   if(isActive('listas')) renderListas();
   if(isActive('artistas')) renderArtistas();
-  if(isActive('artist') && currentArtistId) openArtist(currentArtistId, {stay:true});
+  if(isActive('artist') && (currentArtistId || currentArtistName)) _openArtistView(currentArtistId, currentArtistName, {stay:true});
   if(isActive('folder') && currentFolderId) openFolder(currentFolderId, {stay:true});
   if(isActive('song') && currentSongId){
     const s = songs.find(x=>x.id===currentSongId);
@@ -1062,12 +1063,19 @@ function artistByName(name){
   if(!n) return null;
   return artists.find(a=>normName(a.name)===n) || null;
 }
+// Mapa nome-normalizado -> capa, reconstruído sempre que a lista de artistas
+// muda. Evita varrer todos os artistas para cada música ao montar as listas.
+let artistCoverMap = new Map();
+function rebuildArtistCoverMap(){
+  artistCoverMap = new Map();
+  artists.forEach(a=>{ const k=normName(a.name); if(k) artistCoverMap.set(k, a.cover||''); });
+}
 // Capa efetiva de uma cifra: a capa própria dela, ou — se não tiver — a capa
 // do artista cadastrado com o mesmo nome.
 function getSongCover(s){
   if(s && s.cover) return s.cover;
-  const a = artistByName(s && s.artist);
-  return (a && a.cover) ? a.cover : '';
+  const c = s ? artistCoverMap.get(normName(s.artist)) : '';
+  return c || '';
 }
 // Monta o quadradinho de capa (thumb). Se a imagem falhar ao carregar, cai
 // de volta para o emoji.
@@ -1112,9 +1120,12 @@ function renderListas(){
       <button class="cta" onclick="openNewFolder()">Criar lista</button></div>`;
     return;
   }
+  // Conta os itens de cada lista numa única passagem pelas músicas.
+  const fcounts = new Map();
+  songs.forEach(s=>(s.folders||[]).forEach(fid=>fcounts.set(fid,(fcounts.get(fid)||0)+1)));
   const sorted = folders.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','pt-BR'));
   list.innerHTML = sorted.map(f=>{
-    const count = songs.filter(s=>(s.folders||[]).includes(f.id)).length;
+    const count = fcounts.get(f.id) || 0;
     return `<div class="row" onclick="openFolder('${f.id}')">
       <div class="thumb">📁</div>
       <div class="info">
@@ -1850,6 +1861,10 @@ function artistSongs(name){
 function renderArtistas(){
   const q = (document.getElementById('artistas-search').value||'').toLowerCase().trim();
   const list = document.getElementById('artistas-list');
+  // Conta as cifras por artista numa única passagem (evita varrer todas as
+  // músicas para cada artista).
+  const counts = new Map();
+  songs.forEach(s=>{ const k=normName(s.artist); if(k) counts.set(k,(counts.get(k)||0)+1); });
   // Junta artistas cadastrados + artistas que aparecem nas cifras.
   const map = new Map();
   artists.forEach(a=>{ const k=normName(a.name); if(k) map.set(k,{id:a.id, name:a.name, cover:a.cover||''}); });
@@ -1864,7 +1879,7 @@ function renderArtistas(){
     return;
   }
   list.innerHTML = items.map(a=>{
-    const count = songs.filter(s=>normName(s.artist)===normName(a.name)).length;
+    const count = counts.get(normName(a.name)) || 0;
     const openArg = a.id ? `openArtist('${a.id}')` : `openArtistByName('${encodeURIComponent(a.name)}')`;
     const editArg = a.id ? `openEditArtist('${a.id}')` : `openEditArtistByName('${encodeURIComponent(a.name)}')`;
     return `<div class="row" onclick="${openArg}">
@@ -2123,11 +2138,17 @@ function exportFile(){
 
 /* ---------------- MODAL / TOAST ---------------- */
 function showModal(html){
+  const backdrop = document.getElementById('modal-backdrop');
+  const alreadyOpen = backdrop.classList.contains('show');
   document.getElementById('modal-body').innerHTML = html;
-  document.getElementById('modal-backdrop').classList.add('show');
-  // Empilha um estado leve no histórico só para o modal: assim o botão "voltar"
-  // do navegador fecha o modal primeiro, em vez de navegar a tela de trás.
-  pushNavState(Object.assign({}, history.state, {modal:true}));
+  backdrop.classList.add('show');
+  // Só empilha UM estado de histórico por modal. Quando um modal já está aberto
+  // e estamos apenas trocando o conteúdo (ex.: modal do artista -> busca de capa
+  // -> volta pro modal do artista), NÃO empilhamos de novo — caso contrário o
+  // botão "voltar" precisaria de vários toques para sair (causa do travamento).
+  if(!alreadyOpen){
+    pushNavState(Object.assign({}, history.state, {modal:true}));
+  }
 }
 function closeModal(){
   document.getElementById('modal-backdrop').classList.remove('show');
