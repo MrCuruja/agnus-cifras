@@ -1050,9 +1050,43 @@ function showScreen(name){
   if(name==='cifras') renderCifras();
   if(name==='listas') renderListas();
   if(name==='artistas') renderArtistas();
+  // Mantém a tela acesa apenas enquanto uma cifra está sendo visualizada
+  // (ignora o desligamento automático da tela do aparelho).
+  if(name==='song') requestWakeLock(); else releaseWakeLock();
   stopAutoScroll();
   updateFsBackVisibility();
 }
+
+/* ---------------- TELA SEMPRE ACESA (Screen Wake Lock) ----------------
+   Usa a Screen Wake Lock API para impedir que a tela do aparelho apague
+   sozinha enquanto o músico está lendo a cifra. Suportada no Chrome/Android
+   (inclusive instalado como PWA) e no Safari/iOS 16.4+. Onde não há suporte,
+   falha em silêncio e o comportamento padrão do aparelho continua valendo.
+   O navegador libera o wake lock automaticamente quando a aba fica oculta
+   (troca de app, tela bloqueada manualmente etc.); por isso reconquistamos
+   o lock no 'visibilitychange' se o usuário voltar e a cifra ainda estiver
+   na tela. */
+let wakeLock = null;
+async function requestWakeLock(){
+  if(!('wakeLock' in navigator)) return;
+  if(wakeLock) return; // já ativo
+  try{
+    wakeLock = await navigator.wakeLock.request('screen');
+    wakeLock.addEventListener('release', ()=>{ wakeLock = null; });
+  }catch(e){
+    // Falha comum: bateria fraca, economia de energia, ou aba não visível.
+    wakeLock = null;
+  }
+}
+function releaseWakeLock(){
+  if(wakeLock){
+    const wl = wakeLock; wakeLock = null;
+    wl.release().catch(()=>{});
+  }
+}
+document.addEventListener('visibilitychange', ()=>{
+  if(document.visibilityState === 'visible' && isActive('song')) requestWakeLock();
+});
 
 /* ---------------- CAPAS & ARTISTAS (helpers) ---------------- */
 // Normaliza um nome de artista para comparação (sem diferenciar maiúsculas).
