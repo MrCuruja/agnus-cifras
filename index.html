@@ -206,6 +206,26 @@
   .chord-content .chord{color:var(--accent); font-weight:800;}
   .chord-content .section{color:var(--section); font-weight:800; letter-spacing:.02em;}
 
+  /* ---------- Modo "só letra" (aba Letras, para os cantores) ---------- */
+  /* Esconde os controles que só fazem sentido com a cifra (transposição,
+     editar, menu). A leitura fica limpa: só título, artista, letra e a barra
+     inferior de fonte/rolagem/tela cheia. */
+  body.lyrics-mode .song-meta-row{display:none;}
+  /* Sem acordes para alinhar, a letra fica melhor numa fonte proporcional,
+     com mais respiro entre as linhas. */
+  body.lyrics-mode #chord-content{
+    font-family:inherit; font-size:17px; line-height:1.75; letter-spacing:.005em;
+  }
+  body.lyrics-mode #chord-content .line{white-space:pre-wrap;}
+  .lyrics-badge{
+    display:none; align-items:center; gap:5px; margin-top:8px; width:fit-content;
+    font-size:12px; font-weight:700; color:var(--accent);
+    background:var(--accent-soft); border:1px solid var(--accent-ring);
+    padding:3px 10px; border-radius:20px; letter-spacing:.02em;
+  }
+  body.lyrics-mode .lyrics-badge{display:inline-flex;}
+  .row .lyric-go{color:var(--text-dim); flex-shrink:0; display:flex; align-items:center; padding-right:2px;}
+
   /* Barra de ferramentas da música — pílula flutuante em vidro fosco */
   .song-toolbar{
     position:fixed; bottom:0; left:0; right:0; display:flex; justify-content:center;
@@ -619,6 +639,48 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
       Cifras
     </button>
+    <button onclick="goToTab('letras')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+      Letras
+    </button>
+    <button onclick="goToTab('listas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Listas
+    </button>
+    <button onclick="goToTab('artistas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+      Artistas
+    </button>
+  </nav>
+</div>
+
+<!-- ===================== LETRAS SCREEN ===================== -->
+<div class="screen" id="screen-letras">
+  <header>
+    <div class="title">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+      Letras
+    </div>
+    <div class="actions">
+      <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
+    </div>
+  </header>
+  <div class="toolbar">
+    <div class="search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="letras-search" placeholder="Buscar música ou artista..." oninput="renderLetras()">
+    </div>
+  </div>
+  <div class="list" id="letras-list"></div>
+  <nav class="bottom">
+    <button onclick="goToTab('cifras')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+      Cifras
+    </button>
+    <button onclick="goToTab('letras')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+      Letras
+    </button>
     <button onclick="goToTab('listas')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
       Listas
@@ -644,6 +706,10 @@
     <button onclick="goToTab('cifras')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
       Cifras
+    </button>
+    <button onclick="goToTab('letras')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+      Letras
     </button>
     <button class="active" onclick="goToTab('listas')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -679,6 +745,10 @@
     <button onclick="goToTab('cifras')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
       Cifras
+    </button>
+    <button onclick="goToTab('letras')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+      Letras
     </button>
     <button onclick="goToTab('listas')">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
@@ -720,6 +790,7 @@
     <button class="back-btn" onclick="backFromSong()">←</button>
     <h1 id="song-title" style="margin-top:8px;"></h1>
     <div class="artist" id="song-artist"></div>
+    <span class="lyrics-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>Letra</span>
     <div class="song-meta-row">
       <div class="transpose-ctrl">
         <button onclick="transposeSong(-1)">−</button>
@@ -861,6 +932,11 @@ let currentArtistId = null;
 let currentTranspose = 0;
 let cameFrom = 'cifras';
 let fontSize = 15;
+// Quando verdadeiro, a tela da música mostra APENAS a letra (sem os acordes),
+// para que os cantores/vocalistas possam acompanhar. É ativado ao abrir uma
+// música pela aba "Letras". A letra é derivada automaticamente da própria
+// cifra já cadastrada — não há dado duplicado a manter.
+let lyricsMode = false;
 
 function setSyncDot(state){
   const dot = document.getElementById('sync-dot');
@@ -956,6 +1032,7 @@ function stopListeners(){
 
 function onDataChanged(){
   if(isActive('cifras')) renderCifras();
+  if(isActive('letras')) renderLetras();
   if(isActive('listas')) renderListas();
   if(isActive('artistas')) renderArtistas();
   if(isActive('artist') && (currentArtistId || currentArtistName)) _openArtistView(currentArtistId, currentArtistName, {stay:true});
@@ -987,6 +1064,7 @@ function replaceNavState(state){ history.replaceState(state, '', '#'+state.scree
 function restoreNavState(state){
   stopAutoScroll();
   if(!state || !state.screen || state.screen==='cifras'){ showScreen('cifras'); return; }
+  if(state.screen==='letras'){ showScreen('letras'); return; }
   if(state.screen==='listas'){ showScreen('listas'); return; }
   if(state.screen==='artistas'){ showScreen('artistas'); return; }
   if(state.screen==='artist'){
@@ -998,6 +1076,7 @@ function restoreNavState(state){
   if(state.screen==='song'){
     currentSongId = state.songId;
     cameFrom = state.cameFrom || 'cifras';
+    lyricsMode = !!state.lyrics;
     const s = songs.find(x=>x.id===state.songId);
     if(s){ currentTranspose = (typeof s.transpose==='number') ? s.transpose : 0; refreshSongView(s); showScreen('song'); } else { showScreen('cifras'); }
     return;
@@ -1040,7 +1119,7 @@ function showScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
   document.querySelectorAll('nav.bottom button').forEach(b=>b.classList.remove('active'));
-  if(name==='cifras'||name==='listas'||name==='artistas'){
+  if(name==='cifras'||name==='letras'||name==='listas'||name==='artistas'){
     document.querySelectorAll('nav.bottom').forEach(nav=>{
       nav.querySelectorAll('button').forEach(b=>{
         if(b.textContent.trim().toLowerCase().startsWith(name)) b.classList.add('active');
@@ -1048,6 +1127,7 @@ function showScreen(name){
     });
   }
   if(name==='cifras') renderCifras();
+  if(name==='letras') renderLetras();
   if(name==='listas') renderListas();
   if(name==='artistas') renderArtistas();
   // Mantém a tela acesa apenas enquanto uma cifra está sendo visualizada
@@ -1142,6 +1222,35 @@ function renderCifras(){
       </div>
       <div class="tom">${escapeHtml(getDisplayTom(s.tom, s.transpose))}</div>
       <div class="kebab" onclick="event.stopPropagation(); openSongMenuFor('${s.id}')">⋮</div>
+    </div>`).join('');
+}
+
+/* ---------------- LETRAS (SÓ A LETRA, PARA OS CANTORES) ----------------
+   Mesma lista de músicas da aba Cifras, mas cada item abre a música em modo
+   "só letra" (openSong com {lyrics:true}). Não há tom nem menu de edição aqui:
+   é uma tela de leitura pensada para vocalistas acompanharem. */
+function renderLetras(){
+  const q = (document.getElementById('letras-search').value||'').toLowerCase().trim();
+  const list = document.getElementById('letras-list');
+  let items = songs.slice().sort((a,b)=>(a.title||'').localeCompare(b.title||'','pt-BR'));
+  if(q) items = items.filter(s => (s.title||'').toLowerCase().includes(q) || (s.artist||'').toLowerCase().includes(q));
+  if(items.length===0){
+    list.innerHTML = `<div class="empty-state">
+      <div>${q? 'Nenhuma música encontrada.' : 'Nenhuma música cadastrada ainda.'}</div>
+      <div style="font-size:13px;">${q? '' : 'Cadastre as cifras na aba Cifras — a letra aparece aqui automaticamente.'}</div>
+    </div>`;
+    return;
+  }
+  list.innerHTML = items.map(s=>`
+    <div class="row" onclick="openSong('${s.id}', 'letras', {lyrics:true})">
+      ${coverThumb(getSongCover(s))}
+      <div class="info">
+        <div class="name">${escapeHtml(s.title)}</div>
+        <div class="sub">${escapeHtml(s.artist||'')}</div>
+      </div>
+      <div class="lyric-go" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
+      </div>
     </div>`).join('');
 }
 
@@ -1413,6 +1522,47 @@ function renderChordContent(content, steps){
   }
   return out.join('');
 }
+// Monta a versão SÓ LETRA de uma música (usada na aba "Letras"): parte do mesmo
+// conteúdo da cifra, mas descarta as linhas que são puramente de acordes. Assim
+// os cantores acompanham só as palavras. Detalhes importantes:
+//  - marcadores de seção ([Intro], [Refrão], [Ponte]...) são preservados,
+//    inclusive quando estão na mesma linha dos acordes de uma intro;
+//  - linhas em branco consecutivas (que sobrariam ao remover as linhas de
+//    acorde) são colapsadas em uma só, para a leitura não ficar cheia de buracos.
+function renderLyricsContent(content){
+  const normalized = (content||'')
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')
+    .replace(/[\u00A0\u2000-\u200A\u202F\u3000]/g, ' ')
+    .replace(/[ºª]/g, '°')
+    .replace(/[⁄∕]/g, '/');
+  const rawLines = normalized.split('\n');
+  const out = [];
+  let prevBlank = false;
+  for(let i=0;i<rawLines.length;i++){
+    const line = rawLines[i];
+    if(line.trim()===''){
+      if(!prevBlank) out.push('<div class="line">&nbsp;</div>');
+      prevBlank = true;
+      continue;
+    }
+    const info = classifyLine(line);
+    if(info.isChordLine){
+      // Linha de acordes: os acordes são descartados, mas se houver um marcador
+      // de seção junto (ex.: "[Intro] D A G") ele é mantido sozinho.
+      const brackets = info.tokens.filter(t=>info.isBracket(t));
+      if(brackets.length){
+        out.push('<div class="line">'+brackets.map(t=>`<span class="section">${escapeHtml(t)}</span>`).join(' ')+'</div>');
+        prevBlank = false;
+      }
+      // linha só de acordes → não emite nada (e nem conta como linha em branco)
+      continue;
+    }
+    // Linha de letra (ou marcador de seção sozinho): renderiza sem colorir acordes.
+    out.push(renderSingleLine(line, 0, false));
+    prevBlank = false;
+  }
+  return out.join('');
+}
 // Calcula o tom "de exibição" a partir do tom-base salvo e de um deslocamento
 // (em semitons) — usado tanto na tela da cifra (com o deslocamento "ao vivo"
 // da sessão atual) quanto nas listagens (Cifras/Listas/pasta), que usam o
@@ -1430,14 +1580,23 @@ function updateTomDisplay(s){
 function refreshSongView(s){
   document.getElementById('song-title').textContent = s.title;
   document.getElementById('song-artist').textContent = s.artist||'';
-  document.getElementById('chord-content').innerHTML = renderChordContent(s.content||'', currentTranspose);
-  document.getElementById('chord-content').style.fontSize = fontSize+'px';
+  const cc = document.getElementById('chord-content');
+  // No modo "só letra" (aba Letras) escondemos os acordes e os controles que só
+  // fazem sentido com cifra (transposição/edição), via classe no <body>.
+  document.body.classList.toggle('lyrics-mode', lyricsMode);
+  cc.innerHTML = lyricsMode
+    ? renderLyricsContent(s.content||'')
+    : renderChordContent(s.content||'', currentTranspose);
+  cc.style.fontSize = fontSize+'px';
   updateTomDisplay(s);
 }
 function openSong(id, from, opts){
   opts = opts || {};
+  // opts.lyrics = abrir em modo "só letra" (aba Letras). Também é preservado no
+  // histórico do navegador para que "voltar" e a re-sincronização mantenham o modo.
+  lyricsMode = !!opts.lyrics;
   currentSongId = id;
-  cameFrom = from || (isActive('folder') ? 'folder' : (isActive('listas')?'listas':'cifras'));
+  cameFrom = from || (isActive('folder') ? 'folder' : (isActive('letras')?'letras':(isActive('listas')?'listas':'cifras')));
   const s = songs.find(x=>x.id===id);
   if(!s) return;
   // Abre a cifra já no tom que o usuário deixou selecionado da última vez
@@ -1448,8 +1607,9 @@ function openSong(id, from, opts){
   // Empilha (ou substitui, quando vindo de "Salvar") um estado no histórico do
   // navegador, para que o botão "voltar" saia da cifra em vez de fechar a página.
   if(!opts.skipHistory){
-    if(opts.replace) replaceNavState({screen:'song', songId:id, cameFrom});
-    else pushNavState({screen:'song', songId:id, cameFrom});
+    const st = {screen:'song', songId:id, cameFrom, lyrics:lyricsMode};
+    if(opts.replace) replaceNavState(st);
+    else pushNavState(st);
   }
 }
 function backFromSong(){ flushTransposeSave(); history.back(); }
