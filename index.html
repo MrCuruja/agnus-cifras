@@ -545,6 +545,121 @@
   #fs-back:active{ transform:scale(.9); }
   body.presentation-mode.fs-on-song #fs-back{ display:flex; animation:fadeIn .25s var(--ease) both; }
 
+  /* ============================================================
+     MODO APRESENTAÇÃO (SLIDES) — projeção no telão/computador
+     ============================================================ */
+  /* Pílula de destaque (ação principal "Apresentar" na barra de letra) */
+  .pill.accent{
+    background:var(--accent-grad); color:#fff; border:none; font-weight:700;
+    box-shadow:0 6px 16px var(--accent-soft);
+  }
+  .pill.accent:active{filter:brightness(1.06); background:var(--accent-grad);}
+  /* Botão de apresentar dentro de cada linha da aba Letras */
+  .row .present-row-btn{
+    flex-shrink:0; width:40px; height:40px; border-radius:50%; margin-right:2px;
+    background:var(--accent-soft); border:1px solid var(--accent-ring); color:#ffb9b3;
+    display:flex; align-items:center; justify-content:center; cursor:pointer; padding:0;
+    transition:transform .16s var(--ease), background .2s var(--ease);
+  }
+  .row .present-row-btn:active{transform:scale(.9); background:var(--accent-ring);}
+
+  /* --- Editor de slides (cards) --- */
+  .slides-toolbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:4px;}
+  .slides-count{font-size:12.5px; color:var(--text-dim); margin-left:auto;}
+  .slides-cards{display:flex; flex-direction:column; gap:12px; margin-top:14px;}
+  .slide-card{
+    background:var(--bg-elev); border:1px solid var(--line); border-radius:16px; overflow:hidden;
+    box-shadow:var(--shadow-1);
+  }
+  .slide-card-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:9px 12px; background:var(--bg-elev-2); border-bottom:1px solid var(--line);
+  }
+  .slide-num{font-size:12px; font-weight:700; color:var(--accent); letter-spacing:.02em; text-transform:uppercase;}
+  .slide-card-actions{display:flex; gap:4px;}
+  .slide-card-actions button{
+    width:30px; height:30px; border-radius:9px; border:1px solid var(--line);
+    background:var(--bg); color:var(--text); font-size:15px; cursor:pointer; line-height:1;
+    display:flex; align-items:center; justify-content:center; padding:0;
+    transition:transform .14s var(--ease), background .18s var(--ease), opacity .18s var(--ease);
+  }
+  .slide-card-actions button:active{transform:scale(.9);}
+  .slide-card-actions button.danger{color:var(--danger); border-color:rgba(255,91,96,.4);}
+  .slide-card-actions button:disabled{opacity:.3; cursor:default;}
+  .slide-card textarea.slide-text{
+    border:none; border-radius:0; background:transparent; font-family:inherit;
+    font-size:16px; line-height:1.5; white-space:pre-wrap; min-height:70px; padding:12px 14px;
+    resize:none; overflow:hidden;
+  }
+  .slide-card textarea.slide-text:focus{box-shadow:none;}
+
+  /* --- Overlay de apresentação em tela cheia --- */
+  #present-overlay{
+    position:fixed; inset:0; z-index:200; display:none;
+    background:#000; color:#fff; flex-direction:column;
+    user-select:none; -webkit-user-select:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  #present-overlay.show{display:flex;}
+  body.presenting{overflow:hidden;}
+  .present-topbar{
+    position:absolute; top:0; left:0; right:0; z-index:4;
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    padding:16px 20px calc(28px);
+    background:linear-gradient(to bottom, rgba(0,0,0,.72), rgba(0,0,0,0));
+    opacity:0; pointer-events:none; transition:opacity .25s var(--ease);
+  }
+  #present-overlay.chrome .present-topbar{opacity:1; pointer-events:auto;}
+  .present-topbar .pt-info{display:flex; align-items:baseline; gap:12px; min-width:0;}
+  .pt-title{font-size:15px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:46vw;}
+  .pt-counter{font-size:13px; color:rgba(255,255,255,.6); font-variant-numeric:tabular-nums; flex-shrink:0;}
+  .present-topbar .pt-actions{display:flex; gap:8px; flex-shrink:0;}
+  .present-topbar button{
+    background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); color:#fff;
+    font-size:13.5px; font-weight:650; padding:8px 13px; border-radius:20px; cursor:pointer;
+    display:flex; align-items:center; gap:6px; transition:background .18s var(--ease), transform .14s var(--ease);
+  }
+  .present-topbar button:hover{background:rgba(255,255,255,.22);}
+  .present-topbar button:active{transform:scale(.94);}
+  .present-topbar button.on{background:var(--accent-grad); border-color:transparent;}
+  .present-topbar button svg{width:16px; height:16px; display:block;}
+  .present-stage{
+    flex:1; display:flex; align-items:center; justify-content:center;
+    padding:7vh 6vw; overflow:hidden; cursor:pointer;
+  }
+  .present-slide{
+    width:100%; max-width:1500px; text-align:center; font-weight:800;
+    line-height:1.25; letter-spacing:-0.015em; text-wrap:balance;
+    text-shadow:0 2px 22px rgba(0,0,0,.55); font-size:64px;
+  }
+  #present-overlay.blackout .present-stage{visibility:hidden;}
+  .present-blackmsg{
+    position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    font-size:15px; color:rgba(255,255,255,.32); z-index:2; pointer-events:none;
+  }
+  #present-overlay.blackout .present-blackmsg{display:flex;}
+  .present-nav{
+    position:absolute; top:0; bottom:0; z-index:3; width:15%;
+    display:flex; align-items:center; font-size:44px; font-weight:300;
+    color:rgba(255,255,255,0); cursor:pointer; user-select:none;
+    transition:color .2s var(--ease), background .2s var(--ease);
+  }
+  .present-nav.prev{left:0; justify-content:flex-start; padding-left:22px;}
+  .present-nav.next{right:0; justify-content:flex-end; padding-right:22px;}
+  #present-overlay.chrome .present-nav{color:rgba(255,255,255,.3);}
+  .present-nav:hover{color:rgba(255,255,255,.85); background:rgba(255,255,255,.05);}
+  .present-nav.disabled{pointer-events:none; opacity:0;}
+  .present-hint{
+    position:absolute; left:0; right:0; bottom:30px; text-align:center;
+    font-size:13.5px; color:rgba(255,255,255,.5); pointer-events:none;
+    transition:opacity .5s var(--ease); z-index:2;
+  }
+  .present-progress{
+    position:absolute; left:0; bottom:0; height:4px; width:0;
+    background:var(--accent-grad); z-index:4; transition:width .22s var(--ease);
+  }
+  #present-overlay.blackout .present-progress{opacity:.25;}
+
   /* Acessibilidade: respeita quem prefere menos movimento */
   @media (prefers-reduced-motion: reduce){
     *{animation:none !important; transition:none !important;}
@@ -800,6 +915,8 @@
     <div class="artist" id="song-artist"></div>
     <div class="lyrics-bar">
       <span class="lyrics-badge"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="lyrics-badge-text">Letra</span></span>
+      <button class="pill accent" onclick="openPresentation(currentSongId)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 8.2l4.5 2.8-4.5 2.8V8.2z" fill="currentColor" stroke="none"/><line x1="8" y1="21" x2="16" y2="21"/></svg> Apresentar</button>
+      <button class="pill" onclick="openSlidesEdit(currentSongId)">▦ Editar slides</button>
       <button class="pill" onclick="openLyricsEdit(currentSongId)">✎ Editar letra</button>
     </div>
     <div class="song-meta-row">
@@ -897,6 +1014,34 @@ Santo, Santo Ele é"></textarea>
   </div>
 </div>
 
+<!-- ===================== EDITAR SLIDES SCREEN ===================== -->
+<div class="screen" id="screen-slides-edit">
+  <header>
+    <button class="back-btn" onclick="cancelSlidesEdit()">←</button>
+    <div class="title">Editar slides</div>
+    <button class="icon-btn" onclick="presentFromEditor()" title="Apresentar" aria-label="Apresentar">▶</button>
+  </header>
+  <div class="form-wrap">
+    <div class="lyrics-edit-song">
+      <div class="lyrics-edit-title" id="slides-edit-title">Música</div>
+      <div class="lyrics-edit-artist" id="slides-edit-artist"></div>
+    </div>
+    <label>Slides da apresentação</label>
+    <div class="slides-toolbar">
+      <button type="button" class="btn-sm accent" onclick="regenerateSlidesFromLyrics()">↻ Gerar da letra</button>
+      <button type="button" class="btn-sm" onclick="addSlideCard('', true)">＋ Adicionar slide</button>
+      <span class="slides-count" id="slides-count"></span>
+    </div>
+    <div class="hint">Cada bloco abaixo vira um slide projetado no telão. Divida a letra em partes curtas (uma estrofe ou refrão por slide costuma funcionar bem). Edite livremente e use os botões de cada card para mover, duplicar ou remover. "Gerar da letra" recria os slides automaticamente a partir da letra da música.</div>
+    <div class="slides-cards" id="slides-cards"></div>
+    <button type="button" class="btn ghost" id="slides-reset-btn" style="margin-top:14px; display:none;" onclick="resetSlides()">↺ Voltar aos slides automáticos</button>
+  </div>
+  <div class="save-bar">
+    <button class="btn ghost" onclick="presentFromEditor()">▶ Apresentar</button>
+    <button class="btn primary" onclick="saveSlides()">Salvar slides</button>
+  </div>
+</div>
+
 <!-- ===================== MODALS ===================== -->
 <div class="modal-backdrop" id="modal-backdrop" onclick="if(event.target===this) closeModal()">
   <div class="modal" id="modal-body"></div>
@@ -907,6 +1052,29 @@ Santo, Santo Ele é"></textarea>
 <!-- Botões flutuantes de navegação em tela cheia -->
 <button id="fs-back" onclick="backFromSong()" title="Voltar" aria-label="Voltar">←</button>
 <button id="fs-exit" onclick="toggleFullscreen()" title="Sair da tela cheia" aria-label="Sair da tela cheia"><span id="fs-exit-ic"></span>Sair</button>
+
+<!-- ===================== APRESENTAÇÃO (SLIDES / TELÃO) ===================== -->
+<div id="present-overlay" aria-hidden="true">
+  <div class="present-topbar" id="present-topbar">
+    <div class="pt-info">
+      <span class="pt-title" id="present-song-title"></span>
+      <span class="pt-counter" id="present-counter"></span>
+    </div>
+    <div class="pt-actions">
+      <button id="present-black-btn" onclick="togglePresentBlack()" title="Tela preta (tecla B)">⬛ Tela preta</button>
+      <button id="present-fs-btn" onclick="togglePresentFullscreen()" title="Tela cheia (tecla F)"><span id="present-fs-ic"></span> Tela cheia</button>
+      <button onclick="exitPresentation()" title="Sair (Esc)">✕ Sair</button>
+    </div>
+  </div>
+  <div class="present-nav prev" id="present-prev" onclick="presentPrev()" aria-label="Slide anterior">‹</div>
+  <div class="present-nav next" id="present-next" onclick="presentNext()" aria-label="Próximo slide">›</div>
+  <div class="present-stage" id="present-stage" onclick="presentNext()">
+    <div class="present-slide" id="present-slide"></div>
+  </div>
+  <div class="present-blackmsg">Tela preta — toque ou pressione B para voltar</div>
+  <div class="present-hint" id="present-hint">Setas ← → ou clique para navegar · B tela preta · Esc para sair</div>
+  <div class="present-progress" id="present-progress"></div>
+</div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -1074,6 +1242,15 @@ function onDataChanged(){
     const s = songs.find(x=>x.id===currentSongId);
     if(s) refreshSongView(s); else { showScreen('cifras'); replaceNavState({screen:'cifras'}); }
   }
+  // Se uma apresentação (vinda de uma música salva) está em andamento e a
+  // letra/slides foram editados (aqui ou em outro aparelho), atualiza o slide
+  // atual sem perder a posição do operador. Prévias abertas pelo editor
+  // (presentSongId nulo) não são sincronizadas, para não descartar edições
+  // ainda não salvas.
+  if(presentActive && presentSongId){
+    const s = songs.find(x=>x.id===presentSongId);
+    if(s){ presentSlides = getSongSlides(s); showPresentSlide(); }
+  }
   if(!isActive('edit')) renderFolderChecksIfIdle();
 }
 function isActive(name){ return document.getElementById('screen-'+name).classList.contains('active'); }
@@ -1123,9 +1300,22 @@ function restoreNavState(state){
     openLyricsEdit(state.songId, {skipHistory:true});
     return;
   }
+  if(state.screen==='slides-edit'){
+    openSlidesEdit(state.songId, {skipHistory:true});
+    return;
+  }
+  if(state.screen==='present'){
+    // Chegou aqui só num caso de borda (ex: recarregar com #present na URL):
+    // não há apresentação em andamento; cai para a aba Letras.
+    showScreen('letras');
+    return;
+  }
   showScreen('cifras');
 }
 window.addEventListener('popstate', function(e){
+  // Se a apresentação (telão) está aberta, o botão voltar primeiro fecha ela
+  // e não navega a tela de trás.
+  if(presentActive){ closePresentationInternal(); return; }
   const modal = document.getElementById('modal-backdrop');
   // Se havia um modal/pop-up aberto, o botão voltar primeiro só fecha o modal
   // (igual ao padrão de apps mobile) e não navega a tela de trás.
@@ -1285,6 +1475,9 @@ function renderLetras(){
         <div class="name">${escapeHtml(s.title)}</div>
         <div class="sub">${escapeHtml(s.artist||'')}</div>
       </div>
+      <button class="present-row-btn" onclick="event.stopPropagation(); openPresentation('${s.id}')" title="Apresentar (slides)" aria-label="Apresentar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 8.2l4.5 2.8-4.5 2.8V8.2z" fill="currentColor" stroke="none"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+      </button>
       <div class="lyric-go" aria-hidden="true">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 18l6-6-6-6"/></svg>
       </div>
@@ -1735,6 +1928,405 @@ async function confirmResetLyrics(){
   document.getElementById('lyrics-content').value = deriveLyricsText((s&&s.content)||'');
   document.getElementById('lyrics-reset-btn').style.display = 'none';
 }
+
+/* =========================================================================
+   MODO APRESENTAÇÃO (SLIDES) — projeção da letra no telão / computador
+   -------------------------------------------------------------------------
+   A música pode ter uma lista de slides salva à mão (campo `slides` — array
+   de textos, um por slide). Enquanto não houver slides salvos, eles são
+   gerados automaticamente a partir da letra (a mesma da aba Letras: manual se
+   existir, senão derivada da cifra), quebrando por estrofes (linhas em branco)
+   e descartando marcadores de seção como [Refrão]. Mesmo padrão do campo
+   `lyrics`: ao salvar slides à mão, essa versão passa a valer; e é sempre
+   possível voltar aos slides automáticos.
+   ========================================================================= */
+// Uma linha que é só um marcador de seção ([Intro], [Refrão], [Ponte]...).
+function isMarkerOnlyLine(line){ return /^\s*\[[^\]]+\]\s*$/.test(line||''); }
+// Quebra uma lista de linhas de letra em slides: cada bloco separado por linha
+// em branco vira um slide; marcadores de seção sozinhos são descartados (não
+// devem aparecer projetados para a congregação).
+function splitLyricsIntoSlides(lines){
+  const slides = [];
+  let cur = [];
+  const flush = ()=>{
+    const cleaned = cur.filter(l => !isMarkerOnlyLine(l));
+    const text = cleaned.join('\n').replace(/^\n+|\n+$/g,'');
+    if(text.trim()!=='') slides.push(text);
+    cur = [];
+  };
+  for(const line of lines){
+    if((line||'').trim()===''){ flush(); }
+    else cur.push(line);
+  }
+  flush();
+  return slides;
+}
+// Gera os slides automáticos de uma música a partir da sua letra.
+function autoSlidesFromSong(s){
+  if(!s) return [];
+  const lines = hasManualLyrics(s)
+    ? normalizeLyricText(s.lyrics).split('\n')
+    : deriveLyricsLines(s.content||'');
+  return splitLyricsIntoSlides(lines);
+}
+// A música tem slides salvos à mão quando `slides` é um array não-vazio.
+function hasManualSlides(s){ return !!(s && Array.isArray(s.slides) && s.slides.filter(x=>String(x).trim()!=='').length>0); }
+// Slides "de valor" da música: os salvos à mão, ou os automáticos.
+function getSongSlides(s){
+  if(hasManualSlides(s)) return s.slides.map(x=>String(x)).filter(x=>x.trim()!=='');
+  return autoSlidesFromSong(s);
+}
+
+/* ---------------- EDITOR DE SLIDES (cards) ---------------- */
+function openSlidesEdit(id, opts){
+  opts = opts || {};
+  const s = songs.find(x=>x.id===id);
+  if(!s) return;
+  currentSongId = id;
+  document.getElementById('slides-edit-title').textContent = s.title || '';
+  document.getElementById('slides-edit-artist').textContent = s.artist || '';
+  renderSlideCards(getSongSlides(s));
+  document.getElementById('slides-reset-btn').style.display = hasManualSlides(s) ? '' : 'none';
+  showScreen('slides-edit');
+  if(!opts.skipHistory) pushNavState({screen:'slides-edit', songId:id});
+}
+function cancelSlidesEdit(){ history.back(); }
+function renderSlideCards(arr){
+  const wrap = document.getElementById('slides-cards');
+  wrap.innerHTML = '';
+  if(!arr || arr.length===0){ addSlideCard('', false); }
+  else arr.forEach(txt => addSlideCard(txt, false));
+  updateSlideNums();
+}
+function addSlideCard(text, focus){
+  const wrap = document.getElementById('slides-cards');
+  const card = document.createElement('div');
+  card.className = 'slide-card';
+  card.innerHTML =
+    '<div class="slide-card-head">'
+      + '<span class="slide-num">Slide</span>'
+      + '<div class="slide-card-actions">'
+        + '<button type="button" title="Mover para cima" onclick="moveSlideCard(this,-1)">↑</button>'
+        + '<button type="button" title="Mover para baixo" onclick="moveSlideCard(this,1)">↓</button>'
+        + '<button type="button" title="Duplicar" onclick="dupSlideCard(this)">⧉</button>'
+        + '<button type="button" class="danger" title="Remover" onclick="removeSlideCard(this)">✕</button>'
+      + '</div>'
+    + '</div>'
+    + '<textarea class="slide-text" placeholder="Texto do slide..." oninput="autoGrowSlide(this)"></textarea>';
+  wrap.appendChild(card);
+  const ta = card.querySelector('textarea');
+  ta.value = text || '';
+  autoGrowSlide(ta);
+  updateSlideNums();
+  if(focus){ ta.focus(); card.scrollIntoView({behavior:'smooth', block:'center'}); }
+}
+function autoGrowSlide(ta){
+  ta.style.height = 'auto';
+  ta.style.height = Math.max(70, ta.scrollHeight) + 'px';
+}
+function updateSlideNums(){
+  const cards = Array.from(document.querySelectorAll('#slides-cards .slide-card'));
+  cards.forEach((c,i)=>{
+    c.querySelector('.slide-num').textContent = 'Slide ' + (i+1);
+    const btns = c.querySelectorAll('.slide-card-actions button');
+    btns[0].disabled = (i===0);            // ↑
+    btns[1].disabled = (i===cards.length-1); // ↓
+  });
+  const count = cards.length;
+  document.getElementById('slides-count').textContent = count + (count===1 ? ' slide' : ' slides');
+}
+function moveSlideCard(btn, dir){
+  const card = btn.closest('.slide-card');
+  if(dir<0 && card.previousElementSibling) card.parentNode.insertBefore(card, card.previousElementSibling);
+  if(dir>0 && card.nextElementSibling) card.parentNode.insertBefore(card.nextElementSibling, card);
+  updateSlideNums();
+  card.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+function dupSlideCard(btn){
+  const card = btn.closest('.slide-card');
+  const text = card.querySelector('textarea').value;
+  addSlideCard(text, false);
+  // move a cópia recém-criada (última) para logo depois do original
+  const wrap = document.getElementById('slides-cards');
+  const copy = wrap.lastElementChild;
+  card.parentNode.insertBefore(copy, card.nextElementSibling);
+  updateSlideNums();
+}
+function removeSlideCard(btn){
+  const card = btn.closest('.slide-card');
+  card.remove();
+  if(document.querySelectorAll('#slides-cards .slide-card').length===0) addSlideCard('', false);
+  updateSlideNums();
+}
+function collectSlideCards(){
+  return Array.from(document.querySelectorAll('#slides-cards .slide-text'))
+    .map(ta => ta.value.replace(/\s+$/,'').replace(/^\n+/,''))
+    .filter(t => t.trim()!=='');
+}
+function regenerateSlidesFromLyrics(){
+  const s = songs.find(x=>x.id===currentSongId);
+  if(!s) return;
+  showModal(
+    '<h3>Gerar slides da letra?</h3>'
+    + '<p style="color:var(--text-dim); font-size:14px;">Isto recria os slides automaticamente a partir da letra da música e substitui os cards atuais deste editor. Nada é salvo até você tocar em "Salvar slides".</p>'
+    + '<div class="row-btns">'
+      + '<button class="btn ghost" onclick="closeModal()">Cancelar</button>'
+      + '<button class="btn primary" onclick="closeModal(); doRegenerateSlides()">Gerar</button>'
+    + '</div>'
+  );
+}
+function doRegenerateSlides(){
+  const s = songs.find(x=>x.id===currentSongId);
+  if(!s) return;
+  renderSlideCards(autoSlidesFromSong(s));
+  toast('Slides gerados da letra');
+}
+async function saveSlides(){
+  if(!db){ toast('Configure o Firebase primeiro'); return; }
+  const s = songs.find(x=>x.id===currentSongId);
+  if(!s) return;
+  const arr = collectSlideCards();
+  if(arr.length===0){ toast('Adicione ao menos um slide'); return; }
+  s.slides = arr; // atualização otimista
+  try{
+    await updateDoc(doc(db,'songs',currentSongId), {slides: arr, updatedAt: Date.now()});
+    toast('Slides salvos');
+    history.back();
+  }catch(e){ console.error(e); toast('Erro ao salvar os slides'); }
+}
+function resetSlides(){
+  showModal(
+    '<h3>Voltar aos slides automáticos?</h3>'
+    + '<p style="color:var(--text-dim); font-size:14px;">Os slides personalizados serão descartados e a apresentação volta a ser gerada automaticamente a partir da letra.</p>'
+    + '<div class="row-btns">'
+      + '<button class="btn ghost" onclick="closeModal()">Cancelar</button>'
+      + '<button class="btn danger" onclick="confirmResetSlides()">Restaurar</button>'
+    + '</div>'
+  );
+}
+async function confirmResetSlides(){
+  closeModal();
+  const s = songs.find(x=>x.id===currentSongId);
+  if(s) s.slides = null;
+  try{
+    if(db) await updateDoc(doc(db,'songs',currentSongId), {slides:null, updatedAt:Date.now()});
+    toast('Slides automáticos restaurados');
+  }catch(e){ console.error(e); }
+  if(s){
+    renderSlideCards(autoSlidesFromSong(s));
+    document.getElementById('slides-reset-btn').style.display = 'none';
+  }
+}
+// Apresenta direto a partir dos cards abertos no editor (mesmo sem salvar),
+// para o operador conferir como vai ficar projetado.
+function presentFromEditor(){
+  const arr = collectSlideCards();
+  if(arr.length===0){ toast('Adicione ao menos um slide'); return; }
+  const s = songs.find(x=>x.id===currentSongId);
+  startPresentation((s&&s.title)||'', arr);
+}
+
+/* ---------------- APRESENTADOR EM TELA CHEIA ---------------- */
+let presentSlides = [];
+let presentIndex = 0;
+let presentSongId = null; // música ligada à apresentação (null = a partir do editor, sem sync ao vivo)
+let presentActive = false;
+let presentBlack = false;
+let presentEnteredFS = false;
+let presentChromeTimer = null;
+let presentTouchX = null;
+
+// Abre a apresentação de uma música (pela aba Letras ou pela tela de leitura).
+function openPresentation(id){
+  const s = songs.find(x=>x.id===id);
+  if(!s){ toast('Música não encontrada'); return; }
+  const slides = getSongSlides(s);
+  if(slides.length===0){ toast('Esta música ainda não tem letra para apresentar'); return; }
+  startPresentation(s.title||'', slides);
+  presentSongId = id; // habilita atualização ao vivo se a música for editada
+}
+// Inicia a apresentação com um título e uma lista de slides já pronta.
+function startPresentation(title, slides){
+  presentSlides = slides.slice();
+  presentIndex = 0;
+  presentSongId = null; // por padrão, sem vínculo (ex: prévia do editor)
+  presentBlack = false;
+  presentActive = true;
+  document.getElementById('present-song-title').textContent = title || '';
+  const ov = document.getElementById('present-overlay');
+  ov.classList.remove('blackout');
+  ov.classList.add('show');
+  ov.setAttribute('aria-hidden','false');
+  document.body.classList.add('presenting');
+  updatePresentBlackBtn();
+  showPresentSlide();
+  requestWakeLock();
+  bindPresentKeys();
+  showPresentChrome();
+  // Empilha um estado no histórico para que o botão "voltar" feche a
+  // apresentação (em vez de sair da página).
+  pushNavState({screen:'present'});
+  // Tenta entrar em tela cheia nativa — ótimo no computador da igreja. Como o
+  // início vem de um clique do usuário, o navegador costuma permitir.
+  enterPresentFullscreen();
+  updatePresentFsIcon();
+}
+function showPresentSlide(){
+  const total = presentSlides.length;
+  if(total===0) return;
+  presentIndex = Math.max(0, Math.min(presentIndex, total-1));
+  const slide = document.getElementById('present-slide');
+  slide.innerHTML = escapeHtml(presentSlides[presentIndex] || '').replace(/\n/g,'<br>');
+  document.getElementById('present-counter').textContent = (presentIndex+1) + ' / ' + total;
+  document.getElementById('present-progress').style.width = ((presentIndex+1)/total*100) + '%';
+  const prevEl = document.getElementById('present-prev');
+  const nextEl = document.getElementById('present-next');
+  prevEl.classList.toggle('disabled', presentIndex<=0);
+  nextEl.classList.toggle('disabled', presentIndex>=total-1);
+  // Some com a dica assim que sai do primeiro slide.
+  document.getElementById('present-hint').style.opacity = (presentIndex===0) ? '1' : '0';
+  requestAnimationFrame(fitPresentSlide);
+}
+// Ajusta o tamanho da fonte para o slide caber inteiro na tela (sem cortar nem
+// precisar rolar), independentemente de quantas linhas ele tem.
+function fitPresentSlide(){
+  const stage = document.getElementById('present-stage');
+  const slide = document.getElementById('present-slide');
+  if(!stage || !slide) return;
+  const availH = stage.clientHeight, availW = stage.clientWidth;
+  if(availH<=0 || availW<=0) return;
+  let size = Math.min(Math.round(availH * 0.16), 140);
+  size = Math.max(size, 22);
+  slide.style.fontSize = size + 'px';
+  let guard = 0;
+  while((slide.scrollHeight > availH || slide.scrollWidth > availW) && size > 16 && guard < 240){
+    size -= 2; slide.style.fontSize = size + 'px'; guard++;
+  }
+}
+function presentNext(){
+  if(presentBlack){ togglePresentBlack(); return; }
+  if(presentIndex < presentSlides.length-1){ presentIndex++; showPresentSlide(); }
+  flashPresentChrome();
+}
+function presentPrev(){
+  if(presentBlack){ togglePresentBlack(); return; }
+  if(presentIndex > 0){ presentIndex--; showPresentSlide(); }
+  flashPresentChrome();
+}
+function presentGoto(i){ presentIndex = i; showPresentSlide(); }
+function togglePresentBlack(){
+  presentBlack = !presentBlack;
+  document.getElementById('present-overlay').classList.toggle('blackout', presentBlack);
+  updatePresentBlackBtn();
+  flashPresentChrome();
+}
+function updatePresentBlackBtn(){
+  const b = document.getElementById('present-black-btn');
+  if(b) b.classList.toggle('on', presentBlack);
+}
+function exitPresentation(){
+  // Rota tudo pelo histórico para que o botão "voltar" e o "Sair"/Esc tenham
+  // exatamente o mesmo comportamento e não sobre um estado "present" solto.
+  if(history.state && history.state.screen==='present') history.back();
+  else closePresentationInternal();
+}
+function closePresentationInternal(){
+  if(!presentActive) return;
+  presentActive = false;
+  presentSongId = null;
+  const ov = document.getElementById('present-overlay');
+  ov.classList.remove('show','blackout','chrome');
+  ov.setAttribute('aria-hidden','true');
+  document.body.classList.remove('presenting');
+  unbindPresentKeys();
+  clearTimeout(presentChromeTimer);
+  exitPresentFullscreen();
+  if(!isActive('song')) releaseWakeLock();
+}
+
+/* --- Tela cheia nativa só para a apresentação --- */
+function enterPresentFullscreen(){
+  if(isIOSDevice) return; // iOS não tem tela cheia por API; o overlay já cobre tudo
+  try{
+    const el = document.documentElement;
+    if(!document.fullscreenElement && el.requestFullscreen){ el.requestFullscreen(); presentEnteredFS = true; }
+    else if(!document.webkitFullscreenElement && el.webkitRequestFullscreen){ el.webkitRequestFullscreen(); presentEnteredFS = true; }
+  }catch(e){ /* segue só com o overlay */ }
+  updatePresentFsIcon();
+}
+function exitPresentFullscreen(){
+  if(!presentEnteredFS) return;
+  presentEnteredFS = false;
+  try{
+    if(document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+    else if(document.webkitFullscreenElement && document.webkitExitFullscreen) document.webkitExitFullscreen();
+  }catch(e){ /* ignore */ }
+}
+function togglePresentFullscreen(){
+  if(document.fullscreenElement || document.webkitFullscreenElement){ exitPresentFullscreen(); presentEnteredFS=false; }
+  else enterPresentFullscreen();
+  flashPresentChrome();
+  setTimeout(updatePresentFsIcon, 60);
+}
+function updatePresentFsIcon(){
+  const ic = document.getElementById('present-fs-ic');
+  const on = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  if(ic) ic.innerHTML = on ? ICON_MINIMIZE : ICON_MAXIMIZE;
+}
+
+/* --- Controles: teclado, mouse (auto-ocultar) e toque --- */
+function onPresentKey(e){
+  if(!presentActive) return;
+  const k = e.key;
+  if(k==='ArrowRight' || k==='ArrowDown' || k==='PageDown' || k===' ' || k==='Spacebar' || k==='Enter'){ e.preventDefault(); presentNext(); }
+  else if(k==='ArrowLeft' || k==='ArrowUp' || k==='PageUp'){ e.preventDefault(); presentPrev(); }
+  else if(k==='Home'){ e.preventDefault(); presentGoto(0); }
+  else if(k==='End'){ e.preventDefault(); presentGoto(presentSlides.length-1); }
+  else if(k==='Escape'){ e.preventDefault(); exitPresentation(); }
+  else if(k==='b' || k==='B' || k==='.'){ e.preventDefault(); togglePresentBlack(); }
+  else if(k==='f' || k==='F'){ e.preventDefault(); togglePresentFullscreen(); }
+}
+function bindPresentKeys(){
+  document.addEventListener('keydown', onPresentKey, true);
+  const ov = document.getElementById('present-overlay');
+  ov.addEventListener('mousemove', flashPresentChrome);
+  ov.addEventListener('touchstart', onPresentTouchStart, {passive:true});
+  ov.addEventListener('touchend', onPresentTouchEnd, {passive:true});
+  document.addEventListener('fullscreenchange', updatePresentFsIcon);
+  document.addEventListener('webkitfullscreenchange', updatePresentFsIcon);
+}
+function unbindPresentKeys(){
+  document.removeEventListener('keydown', onPresentKey, true);
+  const ov = document.getElementById('present-overlay');
+  ov.removeEventListener('mousemove', flashPresentChrome);
+  ov.removeEventListener('touchstart', onPresentTouchStart);
+  ov.removeEventListener('touchend', onPresentTouchEnd);
+  document.removeEventListener('fullscreenchange', updatePresentFsIcon);
+  document.removeEventListener('webkitfullscreenchange', updatePresentFsIcon);
+}
+function showPresentChrome(){
+  document.getElementById('present-overlay').classList.add('chrome');
+}
+function hidePresentChrome(){
+  document.getElementById('present-overlay').classList.remove('chrome');
+}
+// Mostra os controles e some sozinho depois de um tempo parado.
+function flashPresentChrome(){
+  if(!presentActive) return;
+  showPresentChrome();
+  clearTimeout(presentChromeTimer);
+  presentChromeTimer = setTimeout(hidePresentChrome, 2600);
+}
+function onPresentTouchStart(e){ presentTouchX = e.changedTouches ? e.changedTouches[0].clientX : null; flashPresentChrome(); }
+function onPresentTouchEnd(e){
+  if(presentTouchX==null || !e.changedTouches) return;
+  const dx = e.changedTouches[0].clientX - presentTouchX;
+  presentTouchX = null;
+  if(Math.abs(dx) > 45){ if(dx < 0) presentNext(); else presentPrev(); }
+}
+// Reajusta a fonte quando a janela muda de tamanho (girar tablet, projetor).
+window.addEventListener('resize', function(){ if(presentActive) requestAnimationFrame(fitPresentSlide); });
+
 /* ---------------- SALVAR TOM SELECIONADO AUTOMATICAMENTE ----------------
    Sempre que o usuário transpõe uma cifra, guardamos o deslocamento (não a
    letra do tom) no próprio documento da música no Firestore — assim, da
@@ -2497,6 +3089,13 @@ Object.assign(window, {
   doLogin, doForgotPassword, doLogout,
   // Aba Letras + editor de letra
   renderLetras, openLyricsEdit, cancelLyricsEdit, saveLyrics, resetLyrics, confirmResetLyrics,
+  // Editor de slides
+  openSlidesEdit, cancelSlidesEdit, addSlideCard, autoGrowSlide, updateSlideNums,
+  moveSlideCard, dupSlideCard, removeSlideCard, regenerateSlidesFromLyrics, doRegenerateSlides,
+  saveSlides, resetSlides, confirmResetSlides, presentFromEditor,
+  // Modo apresentação (telão)
+  openPresentation, presentNext, presentPrev, togglePresentBlack,
+  togglePresentFullscreen, exitPresentation,
   // Capa da cifra + artistas
   renderArtistas, openArtist, openArtistByName, openEditArtist, openEditArtistByName,
   editCurrentArtist, renderArtistModal, saveArtist, deleteArtist, confirmDeleteArtist,
