@@ -626,14 +626,28 @@
   .present-topbar button.on{background:var(--accent-grad); border-color:transparent;}
   .present-topbar button svg{width:16px; height:16px; display:block;}
   .present-stage{
-    flex:1; display:flex; align-items:center; justify-content:center;
-    padding:7vh 6vw; overflow:hidden; cursor:pointer;
+    flex:1; position:relative; overflow:hidden; cursor:pointer;
   }
-  .present-slide{
-    width:100%; max-width:1500px; text-align:center; font-weight:800;
+  /* Trilha vertical de estrofes (efeito de rolagem estilo Spotify):
+     a estrofe atual fica centralizada e branca; a anterior e a próxima
+     aparecem esmaecidas em cima e embaixo. Ao trocar de slide, a trilha
+     desliza suavemente. */
+  .present-track{
+    position:absolute; left:0; right:0; top:0;
+    display:flex; flex-direction:column; align-items:center; gap:1.25em;
+    padding:0 6vw; will-change:transform;
+    transition:transform .55s cubic-bezier(.4,0,.2,1);
+    font-weight:800;
+  }
+  .present-line{
+    width:100%; max-width:1500px; text-align:center;
     line-height:1.25; letter-spacing:-0.015em; text-wrap:balance;
-    text-shadow:0 2px 22px rgba(0,0,0,.55); font-size:64px;
+    text-shadow:0 2px 22px rgba(0,0,0,.55); color:#fff;
+    opacity:0; transition:opacity .45s var(--ease);
   }
+  .present-line.cur{opacity:1;}
+  .present-line.adj{opacity:.30;}
+  .present-line.title-line{letter-spacing:-0.01em;}
   #present-overlay.blackout .present-stage{visibility:hidden;}
   .present-blackmsg{
     position:absolute; inset:0; display:none; align-items:center; justify-content:center;
@@ -661,8 +675,6 @@
     background:var(--accent-grad); z-index:4; transition:width .22s var(--ease);
   }
   #present-overlay.blackout .present-progress{opacity:.25;}
-  /* O primeiro slide (título da música) fica um tiquinho mais destacado. */
-  .present-slide.title-slide{letter-spacing:-0.01em;}
 
   /* --- Aparência dos slides (fonte + tamanho) no editor --- */
   .slides-appearance{display:flex; gap:12px; flex-wrap:wrap; margin-top:12px;}
@@ -1165,7 +1177,7 @@ Santo, Santo Ele é"></textarea>
   <div class="present-nav prev" id="present-prev" onclick="presentPrev()" aria-label="Slide anterior">‹</div>
   <div class="present-nav next" id="present-next" onclick="presentNext()" aria-label="Próximo slide">›</div>
   <div class="present-stage" id="present-stage" onclick="presentNext()">
-    <div class="present-slide" id="present-slide"></div>
+    <div class="present-track" id="present-track"></div>
   </div>
   <div class="present-blackmsg">Tela preta — toque ou pressione B para voltar</div>
   <div class="present-hint" id="present-hint">Setas ← → ou clique para navegar · B tela preta · Esc para sair</div>
@@ -1386,6 +1398,7 @@ function onDataChanged(){
       // Acompanha também mudanças de fonte/tamanho feitas em outro aparelho.
       if(SLIDE_FONTS[s.slidesFont]) presentFontKey = s.slidesFont;
       if(SLIDE_SIZES[s.slidesSize]){ presentSizeKey = s.slidesSize; applyPresentSizeVars(); }
+      presentRebuildSurfaces();
       showPresentSlide();
     }
   }
@@ -2387,11 +2400,89 @@ function applyPresentSizeVars(){
   presentSizeFactor = z.factor; presentSizeCap = z.cap;
 }
 function slideHtml(i){ return escapeHtml(presentSlides[i] || '').replace(/\n/g,'<br>'); }
-// Aplica a fonte escolhida a um elemento de slide (na projeção ou aqui).
-function applySlideFontTo(el){
-  if(!el) return;
-  el.style.fontFamily = slideFontStack(presentFontKey);
-  el.style.fontWeight = slideFontWeight(presentFontKey);
+
+/* --- Efeito "letra rolando" (estilo Spotify) ---------------------------------
+   As estrofes ficam empilhadas numa trilha vertical: a atual centralizada e
+   branca; a anterior e a próxima esmaecidas em cima/embaixo. Trocar de slide
+   apenas desliza a trilha (sem reconstruir o DOM), o que dá a transição suave.
+   As mesmas funções servem para a tela cheia e para a janela de projeção. */
+function singleCtx(){
+  return { win: window, stage: document.getElementById('present-stage'), track: document.getElementById('present-track') };
+}
+function projCtx(){
+  if(!projWin || projWin.closed) return null;
+  let d; try{ d = projWin.document; }catch(e){ return null; }
+  const stage = d.getElementById('pwrap'), track = d.getElementById('present-track');
+  if(!stage || !track) return null;
+  return { win: projWin, stage, track };
+}
+// (Re)constrói os blocos de estrofe na trilha de uma superfície.
+function buildTrackIn(ctx){
+  if(!ctx || !ctx.track) return;
+  let html = '';
+  for(let i=0;i<presentSlides.length;i++){
+    const cls = 'present-line' + (presentTitleFirst && i===0 ? ' title-line' : '');
+    html += '<div class="'+cls+'">' + slideHtml(i) + '</div>';
+  }
+  ctx.track.innerHTML = html;
+  ctx.track.style.fontFamily = slideFontStack(presentFontKey);
+  ctx.track.style.fontWeight = slideFontWeight(presentFontKey);
+}
+// Escolhe uma fonte única para a trilha em que a MAIOR estrofe caiba na "janela"
+// central (parte da tela reservada à estrofe atual), deixando espaço para as
+// vizinhas espiarem em cima e embaixo.
+function fitTrackIn(ctx){
+  if(!ctx || !ctx.track) return;
+  let availH = ctx.stage.clientHeight, availW = ctx.stage.clientWidth;
+  if((availH<=0 || availW<=0) && ctx.win){ availH = ctx.win.innerHeight; availW = ctx.win.innerWidth; }
+  if(availH<=0 || availW<=0) return;
+  const windowH = availH * 0.64; // altura alvo da estrofe atual
+  let size = Math.min(Math.round(availH * presentSizeFactor), presentSizeCap);
+  size = Math.max(size, 16);
+  ctx.track.style.fontSize = size + 'px';
+  let guard = 0;
+  while(guard < 220){
+    let mH = 0, mW = 0;
+    for(const ln of ctx.track.children){ if(ln.scrollHeight>mH) mH=ln.scrollHeight; if(ln.scrollWidth>mW) mW=ln.scrollWidth; }
+    if((mH<=windowH && mW<=availW) || size<=13) break;
+    size -= 2; ctx.track.style.fontSize = size + 'px'; guard++;
+  }
+}
+// Centraliza a estrofe atual e esmaece as vizinhas (só atual, anterior e próxima
+// ficam visíveis). `animate=false` reposiciona sem animação (abertura/rebuild).
+function layoutTrackIn(ctx, animate){
+  if(!ctx || !ctx.track) return;
+  const lines = ctx.track.children, i = presentIndex;
+  for(let k=0;k<lines.length;k++){
+    const d = Math.abs(k - i);
+    let cls = 'present-line';
+    if(presentTitleFirst && k===0) cls += ' title-line';
+    if(k===i) cls += ' cur'; else if(d===1) cls += ' adj';
+    lines[k].className = cls;
+  }
+  const cur = lines[i];
+  if(!cur) return;
+  let availH = ctx.stage.clientHeight;
+  if(availH<=0 && ctx.win) availH = ctx.win.innerHeight;
+  const y = cur.offsetTop + cur.offsetHeight/2 - availH/2;
+  if(!animate) ctx.track.style.transition = 'none';
+  ctx.track.style.transform = 'translateY(' + (-y) + 'px)';
+  if(!animate){ void ctx.track.offsetHeight; ctx.track.style.transition = ''; }
+}
+// Reconstrói as trilhas das superfícies ativas (usado ao abrir e na sincronização
+// ao vivo, quando o conteúdo da música muda).
+function presentRebuildSurfaces(){
+  if(presenterMode){ const pc = projCtx(); if(pc){ buildTrackIn(pc); fitTrackIn(pc); } }
+  else { const sc = singleCtx(); if(sc.track){ buildTrackIn(sc); fitTrackIn(sc); } }
+}
+// Atualiza contador, barra de progresso, setas e dica da tela cheia.
+function updatePresentChromeInfo(){
+  const total = presentSlides.length;
+  document.getElementById('present-counter').textContent = (presentIndex+1) + ' / ' + total;
+  document.getElementById('present-progress').style.width = ((presentIndex+1)/total*100) + '%';
+  document.getElementById('present-prev').classList.toggle('disabled', presentIndex<=0);
+  document.getElementById('present-next').classList.toggle('disabled', presentIndex>=total-1);
+  document.getElementById('present-hint').style.opacity = (presentIndex===0) ? '1' : '0';
 }
 
 // Inicia a apresentação. O 1º slide é SEMPRE o título da música.
@@ -2425,7 +2516,13 @@ function startSingleScreen(title){
   ov.setAttribute('aria-hidden','false');
   document.body.classList.add('presenting');
   updatePresentBlackBtn();
-  showPresentSlide();
+  const sc = singleCtx();
+  buildTrackIn(sc);
+  updatePresentChromeInfo();
+  fitTrackIn(sc);
+  layoutTrackIn(sc, false);
+  // Reajusta depois do paint (dimensões/fonte já assentadas), sem animação.
+  requestAnimationFrame(function(){ fitTrackIn(sc); layoutTrackIn(sc, false); });
   showPresentChrome();
   // Tenta entrar em tela cheia nativa — ótimo no computador da igreja.
   enterPresentFullscreen();
@@ -2436,35 +2533,8 @@ function showPresentSlide(){
   if(total===0) return;
   presentIndex = Math.max(0, Math.min(presentIndex, total-1));
   if(presenterMode){ renderPresenterConsole(); renderProjection(); return; }
-  const slide = document.getElementById('present-slide');
-  slide.innerHTML = slideHtml(presentIndex);
-  slide.classList.toggle('title-slide', presentTitleFirst && presentIndex===0);
-  applySlideFontTo(slide);
-  document.getElementById('present-counter').textContent = (presentIndex+1) + ' / ' + total;
-  document.getElementById('present-progress').style.width = ((presentIndex+1)/total*100) + '%';
-  const prevEl = document.getElementById('present-prev');
-  const nextEl = document.getElementById('present-next');
-  prevEl.classList.toggle('disabled', presentIndex<=0);
-  nextEl.classList.toggle('disabled', presentIndex>=total-1);
-  // Some com a dica assim que sai do primeiro slide.
-  document.getElementById('present-hint').style.opacity = (presentIndex===0) ? '1' : '0';
-  requestAnimationFrame(fitPresentSlide);
-}
-// Ajusta o tamanho da fonte para o slide caber inteiro na tela (sem cortar nem
-// precisar rolar), independentemente de quantas linhas ele tem.
-function fitPresentSlide(){
-  const stage = document.getElementById('present-stage');
-  const slide = document.getElementById('present-slide');
-  if(!stage || !slide) return;
-  const availH = stage.clientHeight, availW = stage.clientWidth;
-  if(availH<=0 || availW<=0) return;
-  let size = Math.min(Math.round(availH * presentSizeFactor), presentSizeCap);
-  size = Math.max(size, 22);
-  slide.style.fontSize = size + 'px';
-  let guard = 0;
-  while((slide.scrollHeight > availH || slide.scrollWidth > availW) && size > 16 && guard < 260){
-    size -= 2; slide.style.fontSize = size + 'px'; guard++;
-  }
+  updatePresentChromeInfo();
+  layoutTrackIn(singleCtx(), true);
 }
 function presentNext(){
   if(presentBlack){ togglePresentBlack(); return; }
@@ -2595,11 +2665,18 @@ function onPresentTouchEnd(e){
   presentTouchX = null;
   if(Math.abs(dx) > 45){ if(dx < 0) presentNext(); else presentPrev(); }
 }
-// Reajusta a fonte quando a janela muda de tamanho (girar tablet, projetor).
+// Reajusta o tamanho da fonte e recentraliza quando a janela muda de tamanho.
 window.addEventListener('resize', function(){
   if(!presentActive) return;
-  if(presenterMode){ requestAnimationFrame(function(){ fitConsolePreview('pc-current-stage','pc-current-slide'); fitConsolePreview('pc-next-stage','pc-next-slide'); }); }
-  else requestAnimationFrame(fitPresentSlide);
+  requestAnimationFrame(function(){
+    if(presenterMode){
+      fitConsolePreview('pc-current-stage','pc-current-slide');
+      fitConsolePreview('pc-next-stage','pc-next-slide');
+      const pc = projCtx(); if(pc){ fitTrackIn(pc); layoutTrackIn(pc, false); }
+    } else {
+      const sc = singleCtx(); fitTrackIn(sc); layoutTrackIn(sc, false);
+    }
+  });
 });
 
 /* =========================================================================
@@ -2625,8 +2702,11 @@ const PROJECTION_DOC =
 + 'html,body{height:100%;width:100%;background:#000;overflow:hidden;}'
 + 'body{display:flex;align-items:center;justify-content:center;cursor:none;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;}'
 + 'body.cursor{cursor:default;}'
-+ '#pwrap{width:100%;height:100%;display:flex;align-items:center;justify-content:center;padding:6vh 6vw;}'
-+ '#pslide{color:#fff;text-align:center;font-weight:800;line-height:1.25;letter-spacing:-.015em;max-width:1600px;width:100%;text-shadow:0 2px 22px rgba(0,0,0,.55);}'
++ '#pwrap{width:100%;height:100%;position:relative;overflow:hidden;}'
++ '#present-track{position:absolute;left:0;right:0;top:0;display:flex;flex-direction:column;align-items:center;gap:1.25em;padding:0 6vw;will-change:transform;transition:transform .55s cubic-bezier(.4,0,.2,1);font-weight:800;}'
++ '.present-line{width:100%;max-width:1600px;text-align:center;line-height:1.25;letter-spacing:-.015em;color:#fff;text-shadow:0 2px 22px rgba(0,0,0,.55);opacity:0;transition:opacity .45s ease;}'
++ '.present-line.cur{opacity:1;}'
++ '.present-line.adj{opacity:.30;}'
 + '#pblack{position:fixed;inset:0;background:#000;display:none;z-index:5;}'
 + 'body.black #pblack{display:block;}'
 + '#pbar{position:fixed;top:0;left:0;right:0;display:flex;justify-content:flex-end;gap:8px;padding:14px;background:linear-gradient(to bottom,rgba(0,0,0,.65),transparent);z-index:6;opacity:0;transition:opacity .25s;pointer-events:none;}'
@@ -2634,7 +2714,7 @@ const PROJECTION_DOC =
 + '#pbar button{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.28);color:#fff;font:600 13px/1 sans-serif;padding:9px 13px;border-radius:20px;cursor:pointer;}'
 + '#phint{position:fixed;left:0;right:0;bottom:22px;text-align:center;color:rgba(255,255,255,.42);font:13px/1.4 sans-serif;z-index:6;transition:opacity .6s;padding:0 20px;}'
 + '</style></head><body>'
-+ '<div id="pwrap"><div id="pslide"></div></div>'
++ '<div id="pwrap"><div id="present-track"></div></div>'
 + '<div id="pblack"></div>'
 + '<div id="pbar"><button id="pfs">\u26F6 Tela cheia</button></div>'
 + '<div id="phint">Arraste esta janela para o projetor e clique em \u201CTela cheia\u201D (ou d\u00EA um duplo-clique). Controle os slides pela outra janela.</div>'
@@ -2688,8 +2768,15 @@ function reopenProjection(){
 }
 function focusProjection(){ try{ if(projWin && !projWin.closed) projWin.focus(); }catch(e){} }
 // Chamados de volta pela janela de projeção:
-function onProjReady(){ renderProjection(); updateProjBtnState(); }
-function projRefit(){ fitProjection(); }
+function onProjReady(){
+  const pc = projCtx();
+  if(pc){ buildTrackIn(pc); fitTrackIn(pc); layoutTrackIn(pc, false); try{ pc.win.document.body.classList.toggle('black', presentBlack); }catch(e){} }
+  updateProjBtnState();
+}
+function projRefit(){
+  const pc = projCtx();
+  if(pc){ fitTrackIn(pc); layoutTrackIn(pc, false); }
+}
 function presenterKey(k){ onPresentKey({key:k, preventDefault:function(){}}); }
 function onProjClosed(){
   if(!presentActive || !presenterMode || projClosingIntentional) return;
@@ -2706,37 +2793,14 @@ function updateProjBtnState(){
   b.classList.toggle('warn', closed);
   b.textContent = closed ? 'Reabrir projeção' : 'Projeção aberta ✓';
 }
-// Atualiza a janela de projeção com o slide atual.
+// Atualiza a janela de projeção com o slide atual (efeito de rolagem).
 function renderProjection(){
-  if(!projWin || projWin.closed) return;
-  let d;
-  try{ d = projWin.document; }catch(e){ return; }
-  const slideEl = d.getElementById('pslide');
-  if(!slideEl) return;
-  slideEl.innerHTML = slideHtml(presentIndex);
-  slideEl.classList.toggle('title', presentTitleFirst && presentIndex===0);
-  slideEl.style.fontFamily = slideFontStack(presentFontKey);
-  slideEl.style.fontWeight = slideFontWeight(presentFontKey);
-  if(d.body) d.body.classList.toggle('black', presentBlack);
-  fitProjection();
-}
-function fitProjection(){
-  if(!projWin || projWin.closed) return;
-  let d;
-  try{ d = projWin.document; }catch(e){ return; }
-  const slideEl = d.getElementById('pslide');
-  const wrap = d.getElementById('pwrap');
-  if(!slideEl || !wrap) return;
-  let availH = wrap.clientHeight, availW = wrap.clientWidth;
-  if(availH<=0 || availW<=0){ availH = projWin.innerHeight; availW = projWin.innerWidth; }
-  if(availH<=0 || availW<=0) return;
-  let size = Math.min(Math.round(availH * presentSizeFactor), presentSizeCap);
-  size = Math.max(size, 20);
-  slideEl.style.fontSize = size + 'px';
-  let guard = 0;
-  while((slideEl.scrollHeight > availH || slideEl.scrollWidth > availW) && size > 14 && guard < 280){
-    size -= 2; slideEl.style.fontSize = size + 'px'; guard++;
-  }
+  const pc = projCtx();
+  if(!pc) return;
+  // Se ainda não foi construída (recém-aberta), constrói agora.
+  if(pc.track.children.length !== presentSlides.length){ buildTrackIn(pc); fitTrackIn(pc); }
+  layoutTrackIn(pc, true);
+  try{ pc.win.document.body.classList.toggle('black', presentBlack); }catch(e){}
 }
 
 /* --- Console do apresentador (nesta janela) --- */
