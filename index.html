@@ -598,9 +598,20 @@
     position:fixed; inset:0; z-index:200; display:none;
     background:#000; color:#fff; flex-direction:column;
     background-image:var(--slide-bg, none); background-size:cover; background-position:center; background-repeat:no-repeat;
-    user-select:none; -webkit-user-select:none;
+    user-select:none; -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none;
+    -webkit-touch-callout:none;
     -webkit-tap-highlight-color:transparent;
   }
+  /* Impede seleção de texto durante a apresentação (ao clicar/arrastar p/ avançar). */
+  #present-overlay, #present-overlay *,
+  #presenter-overlay, #presenter-overlay *,
+  .present-stage, .present-track, .present-line{
+    user-select:none !important; -webkit-user-select:none !important;
+    -moz-user-select:none !important; -ms-user-select:none !important;
+    -webkit-touch-callout:none;
+  }
+  #present-overlay ::selection, .present-line ::selection{ background:transparent; }
+  #present-overlay ::-moz-selection, .present-line ::-moz-selection{ background:transparent; }
   #present-overlay.show{display:flex;}
   #present-overlay.blackout{background-image:none; background-color:#000;}
   body.presenting{overflow:hidden;}
@@ -2544,6 +2555,7 @@ function startSingleScreen(title){
 function showPresentSlide(){
   const total = presentSlides.length;
   if(total===0) return;
+  clearPresentSelection();
   presentIndex = Math.max(0, Math.min(presentIndex, total-1));
   if(presenterMode){ renderPresenterConsole(); renderProjection(); return; }
   updatePresentChromeInfo();
@@ -2640,8 +2652,18 @@ function onPresentKey(e){
   else if(k==='b' || k==='B' || k==='.'){ e.preventDefault(); togglePresentBlack(); }
   else if(k==='f' || k==='F'){ e.preventDefault(); if(presenterMode) focusProjection(); else togglePresentFullscreen(); }
 }
+// Impede que clicar/arrastar para avançar selecione o texto da apresentação.
+function preventPresentSelect(e){ if(presentActive) e.preventDefault(); }
+function preventPresentMultiClick(e){ if(presentActive && e.detail > 1) e.preventDefault(); }
+function clearPresentSelection(){
+  try{ const s = window.getSelection && window.getSelection(); if(s && s.removeAllRanges) s.removeAllRanges(); }catch(e){}
+  try{ if(projWin && !projWin.closed){ const ps = projWin.getSelection && projWin.getSelection(); if(ps && ps.removeAllRanges) ps.removeAllRanges(); } }catch(e){}
+}
 function bindPresentKeys(){
   document.addEventListener('keydown', onPresentKey, true);
+  document.addEventListener('selectstart', preventPresentSelect, true);
+  document.addEventListener('dragstart', preventPresentSelect, true);
+  document.addEventListener('mousedown', preventPresentMultiClick, true);
   const ov = document.getElementById('present-overlay');
   ov.addEventListener('mousemove', flashPresentChrome);
   ov.addEventListener('touchstart', onPresentTouchStart, {passive:true});
@@ -2651,6 +2673,9 @@ function bindPresentKeys(){
 }
 function unbindPresentKeys(){
   document.removeEventListener('keydown', onPresentKey, true);
+  document.removeEventListener('selectstart', preventPresentSelect, true);
+  document.removeEventListener('dragstart', preventPresentSelect, true);
+  document.removeEventListener('mousedown', preventPresentMultiClick, true);
   const ov = document.getElementById('present-overlay');
   ov.removeEventListener('mousemove', flashPresentChrome);
   ov.removeEventListener('touchstart', onPresentTouchStart);
@@ -2711,7 +2736,8 @@ const PROJECTION_DOC =
 '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8">'
 + '<meta name="viewport" content="width=device-width,initial-scale=1">'
 + '<title>Projeção</title><style>'
-+ '*{margin:0;padding:0;box-sizing:border-box;}'
++ '*{margin:0;padding:0;box-sizing:border-box;user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;-webkit-touch-callout:none;}'
++ '::selection{background:transparent;}::-moz-selection{background:transparent;}'
 + 'html,body{height:100%;width:100%;background:#000;overflow:hidden;}'
 + 'body{display:flex;align-items:center;justify-content:center;cursor:none;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;}'
 + 'body.cursor{cursor:default;}'
@@ -2735,11 +2761,14 @@ const PROJECTION_DOC =
 + 'var op=window.opener;'
 + 'function call(fn,arg){try{if(op&&!op.closed&&typeof op[fn]==="function")op[fn](arg);}catch(e){}}'
 + 'document.addEventListener("keydown",function(e){var k=e.key;if(["ArrowLeft","ArrowRight","ArrowUp","ArrowDown","PageUp","PageDown"," ","Home","End"].indexOf(k)>=0)e.preventDefault();call("presenterKey",k);});'
++ 'document.addEventListener("selectstart",function(e){e.preventDefault();});'
++ 'document.addEventListener("dragstart",function(e){e.preventDefault();});'
 + 'window.addEventListener("resize",function(){call("projRefit");});'
 + 'window.addEventListener("beforeunload",function(){call("onProjClosed");});'
 + 'function fs(){try{if(!document.fullscreenElement&&!document.webkitFullscreenElement){var el=document.documentElement;(el.requestFullscreen||el.webkitRequestFullscreen).call(el);}else{(document.exitFullscreen||document.webkitExitFullscreen).call(document);}}catch(e){}}'
 + 'document.getElementById("pfs").addEventListener("click",fs);'
-+ 'document.addEventListener("dblclick",fs);'
++ 'document.addEventListener("dblclick",function(e){e.preventDefault();fs();});'
++ 'document.addEventListener("mousedown",function(e){if(e.detail>1)e.preventDefault();},true);'
 + 'var t;function show(){document.body.classList.add("cursor","chrome");clearTimeout(t);t=setTimeout(function(){document.body.classList.remove("cursor","chrome");},2200);}'
 + 'document.addEventListener("mousemove",show);show();'
 + 'setTimeout(function(){var h=document.getElementById("phint");if(h)h.style.opacity="0";},7000);'
@@ -2760,6 +2789,23 @@ function openProjectionWindow(){
     b.style.backgroundSize = 'cover';
     b.style.backgroundPosition = 'center';
     b.style.backgroundRepeat = 'no-repeat';
+  }catch(e){}
+  // Bloqueia a seleção de texto na projeção a partir daqui (não depende do
+  // script interno da janela). Cobre arrastar, duplo/triplo clique e arrastar-e-soltar.
+  try{
+    const pd = projWin.document;
+    [pd.documentElement, pd.body].forEach(function(el){
+      if(!el) return;
+      el.style.setProperty('user-select','none','important');
+      el.style.setProperty('-webkit-user-select','none','important');
+      el.style.webkitTouchCallout = 'none';
+    });
+    pd.onselectstart = function(){ return false; };
+    if(pd.body) pd.body.onselectstart = function(){ return false; };
+    pd.addEventListener('selectstart', function(e){ e.preventDefault(); }, true);
+    pd.addEventListener('dragstart', function(e){ e.preventDefault(); }, true);
+    // Duplo/triplo clique seleciona palavra/parágrafo: impedir o padrão nesses casos.
+    pd.addEventListener('mousedown', function(e){ if(e.detail > 1){ e.preventDefault(); } }, true);
   }catch(e){}
   clearInterval(projWatch);
   projWatch = setInterval(function(){
