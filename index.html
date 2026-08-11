@@ -1021,7 +1021,7 @@
       <span class="lyrics-badge letra-only"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="lyrics-badge-text">Letra</span></span>
       <span class="spacer"></span>
       <!-- Apresentar (telão) fica sempre à mão nos dois modos. -->
-      <button class="pill accent" onclick="openPresentation(currentSongId)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 8.2l4.5 2.8-4.5 2.8V8.2z" fill="currentColor" stroke="none"/><line x1="8" y1="21" x2="16" y2="21"/></svg> Apresentar</button>
+      <button class="pill accent" onclick="openPresentMenu()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 8.2l4.5 2.8-4.5 2.8V8.2z" fill="currentColor" stroke="none"/><line x1="8" y1="21" x2="16" y2="21"/></svg> Apresentar</button>
       <!-- Edição independente: acordes numa visão, letra na outra. -->
       <button class="pill cifra-only" onclick="openEdit(currentSongId)">✎ Editar</button>
       <button class="pill letra-only" onclick="openLyricsEdit(currentSongId)">✎ Editar letra</button>
@@ -2988,11 +2988,20 @@ function adjustFont(delta){
   const s = songs.find(x=>x.id===currentSongId);
   if(s) refreshSongView(s);
 }
+// Menu do botão "Apresentar": reúne as três formas de apresentar/preparar a
+// música — telão em tela cheia, modo apresentador (2 telas) e edição dos slides.
+function openPresentMenu(){
+  showModal(`
+    <div class="action-sheet">
+      <button onclick="closeModal(); openPresentation(currentSongId)">▶ Tela cheia</button>
+      <button onclick="closeModal(); openPresenter(currentSongId)">🖥 Modo apresentador (2 telas)</button>
+      <button onclick="closeModal(); openSlidesEdit(currentSongId)">▦ Editar slides</button>
+    </div>
+  `);
+}
 function openSongMenu(){
   showModal(`
     <div class="action-sheet">
-      <button onclick="closeModal(); openPresenter(currentSongId)">🖥 Modo apresentador (2 telas)</button>
-      <button onclick="closeModal(); openSlidesEdit(currentSongId)">▦ Editar slides</button>
       <button onclick="closeModal(); manageSongFolders(currentSongId)">Adicionar a lista</button>
       <button class="danger" onclick="deleteCurrentSong()">Excluir música</button>
     </div>
@@ -3715,7 +3724,7 @@ Object.assign(window, {
   saveSlides, resetSlides, confirmResetSlides, presentFromEditor, presentFromEditorPresenter,
   onSlideAppearanceChange,
   // Modo apresentação (telão) e apresentador (2 telas)
-  openPresentation, openPresenter, presentNext, presentPrev, presentGoto, togglePresentBlack,
+  openPresentation, openPresenter, openPresentMenu, presentNext, presentPrev, presentGoto, togglePresentBlack,
   togglePresentFullscreen, exitPresentation, reopenProjection, focusProjection,
   // Callbacks da janela de projeção (chamados via window.opener)
   onProjReady, onProjClosed, projRefit, presenterKey,
