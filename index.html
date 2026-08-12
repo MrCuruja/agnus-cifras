@@ -1417,13 +1417,45 @@ function renderFolderChecksIfIdle(){ /* no-op: chips only rebuilt when opening t
    "voltar" do navegador (evento popstate) é interceptado para desfazer essa
    navegação dentro do próprio app — nunca fechando a página.
 */
-function pushNavState(state){ history.pushState(state, '', '#'+state.screen); }
+function pushNavState(state){
+  // Se o estado atual é de um modal/pop-up aberto, navegar para uma nova tela
+  // deve CONSUMIR essa entrada (replace) em vez de empilhar por cima. Caso
+  // contrário sobra uma entrada duplicada da tela de baixo e o botão "voltar"
+  // passa a exigir dois toques (ex.: sair da apresentação). Ver closeModal().
+  if(history.state && history.state.modal){
+    history.replaceState(state, '', '#'+state.screen);
+  } else {
+    history.pushState(state, '', '#'+state.screen);
+  }
+}
 function replaceNavState(state){ history.replaceState(state, '', '#'+state.screen); }
+
+// Verdadeiro quando o estado que o navegador restaurou corresponde à MESMA tela
+// que já está ativa (mesma música/pasta/artista/editor). Isso acontece ao
+// fechar um modal/pop-up sobreposto: a entrada duplicada do histórico já foi
+// consumida (o índice recuou) e não há o que reconstruir — reconstruir apenas
+// descartaria estado transitório (transposição, rolagem, modo letra, texto em
+// edição). Ver closeModal().
+function isSameActiveTarget(state){
+  switch(state.screen){
+    case 'song':        return isActive('song')        && currentSongId   === state.songId;
+    case 'folder':      return isActive('folder')      && currentFolderId === state.folderId;
+    case 'artist':      return isActive('artist')      && !!state.artistId && currentArtistId === state.artistId;
+    case 'edit':        return isActive('edit')        && currentSongId   === (state.songId||null);
+    case 'lyrics-edit': return isActive('lyrics-edit') && currentSongId   === state.songId;
+    case 'slides-edit': return isActive('slides-edit') && currentSongId   === state.songId;
+    default:            return false;
+  }
+}
 
 // Reconstrói a tela correspondente ao estado para o qual o navegador acabou de
 // voltar (chamado a partir do evento popstate). Nunca empilha um novo estado
 // aqui, senão criaríamos um loop.
 function restoreNavState(state){
+  // Fechar um modal sobreposto volta para a tela que já está ativa — nesse caso
+  // não mexemos em nada (nem paramos o auto-scroll): a duplicata já foi removida
+  // e o conteúdo continua correto.
+  if(state && isSameActiveTarget(state)) return;
   stopAutoScroll();
   if(!state || !state.screen || state.screen==='cifras'){ showScreen('cifras'); return; }
   if(state.screen==='letras'){ showScreen('cifras'); return; }
@@ -3688,17 +3720,25 @@ function showModal(html){
   }
 }
 function closeModal(){
-  document.getElementById('modal-backdrop').classList.remove('show');
-  // Se essa entrada do histórico foi empilhada por showModal(), remove a marca
-  // de "modal aberto" dela (sem navegar). Usamos replaceState (síncrono) em vez
-  // de history.back() de propósito: várias ações fecham o modal e, na mesma
-  // sequência, abrem outra tela (ex: "Editar cifra"), e misturar back() com um
-  // pushState logo em seguida pode confundir o histórico do navegador.
-  if(history.state && history.state.modal){
-    const clean = Object.assign({}, history.state);
-    delete clean.modal;
-    replaceNavState(clean);
-  }
+  const backdrop = document.getElementById('modal-backdrop');
+  backdrop.classList.remove('show');
+  // A entrada de histórico criada por showModal() não pode virar uma duplicata
+  // da tela de baixo, senão o "voltar" precisa de dois toques. Tratamos isso de
+  // forma ADIADA (microtask), depois que o restante da ação síncrona rodou:
+  //  - Se o app navegou para outra tela em seguida (ex.: "Tela cheia",
+  //    "Editar"), pushNavState() já consumiu essa entrada (replace) e o estado
+  //    não é mais "modal" — nada a fazer.
+  //  - Se outro modal foi aberto (ex.: menu -> "Adicionar a lista"), o backdrop
+  //    volta a aparecer — nada a fazer.
+  //  - Se foi um simples fechar (Cancelar / tocar fora / Ok): removemos a
+  //    entrada duplicada voltando de fato (history.back()). Nas telas de
+  //    formulário isso NÃO reconstrói o formulário: restoreNavState detecta que
+  //    o editor já está ativo para a mesma música e preserva o que foi digitado.
+  queueMicrotask(function(){
+    if(backdrop.classList.contains('show')) return;
+    if(!(history.state && history.state.modal)) return;
+    history.back();
+  });
 }
 let toastTimer;
 function toast(msg){
