@@ -324,6 +324,9 @@
     padding:9px 14px; box-shadow:var(--shadow-2);
     animation:popIn .18s var(--ease) both;
   }
+  /* O atributo hidden precisa vencer o display:flex acima, senão todos os
+     painéis aparecem de uma vez. Só o painel acionado deve ficar visível. */
+  .dock-panel[hidden], .dp[hidden]{ display:none !important; }
   .dp-scroll{ width:100%; max-width:560px; }
   .dp-step{
     background:var(--bg-elev); border:none; color:var(--text); min-width:44px; height:38px;
