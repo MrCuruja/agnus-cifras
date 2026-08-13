@@ -162,14 +162,27 @@
   nav.bottom button.active svg{transform:translateY(-1px) scale(1.06);}
 
   /* ---------- Tela da música ---------- */
+  #screen-song{position:relative;}
+  /* Cabeçalho sobreposto (glass) que desliza para fora ao rolar para baixo. */
   .song-header{
-    padding:16px 18px 12px; border-bottom:1px solid var(--line); flex-shrink:0;
+    position:absolute; top:0; left:0; right:0; z-index:20;
+    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
+    border-bottom:1px solid var(--line);
     background:rgba(19,19,23,.72);
     backdrop-filter:saturate(180%) blur(20px);
     -webkit-backdrop-filter:saturate(180%) blur(20px);
+    transition:transform .28s var(--ease), opacity .28s var(--ease);
   }
-  .song-header h1{font-size:23px; margin:0 0 3px; font-weight:800; letter-spacing:-0.02em;}
-  .song-header .artist{color:var(--accent); font-weight:650; font-size:14px;}
+  .song-header.chrome-hidden{ transform:translateY(-100%); opacity:0; pointer-events:none; }
+  .song-head-info{flex:1; min-width:0;}
+  .song-header h1{font-size:20px; margin:0; font-weight:800; letter-spacing:-0.02em;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .song-header .artist{color:var(--accent); font-weight:650; font-size:13.5px; margin-top:2px;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .song-header .back-btn{flex-shrink:0;}
+  .song-header .mode-switch{flex-shrink:0;}
+  .song-header .lyrics-badge{flex-shrink:0;}
   .song-meta-row{display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap;}
   .pill{
     background:var(--bg-elev-2); border:1px solid var(--line); border-radius:22px;
@@ -188,10 +201,10 @@
 
   /* Área da cifra — o comportamento de quebra de linha é FUNCIONAL, mantido intacto. */
   .chord-content{
-    padding:20px 18px 150px; overflow-y:auto; overflow-x:hidden; flex:1;
+    padding:96px 18px 132px; overflow-y:auto; overflow-x:hidden; flex:1; height:100%;
     font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
     font-size:15px; line-height:1.6; white-space:pre-wrap; word-wrap:break-word;
-    max-width:100%;
+    max-width:100%; scroll-behavior:auto;
   }
   /* Cada linha da cifra precisa quebrar sozinha para se adaptar à largura do
      aparelho e ao tamanho de fonte escolhido pelo usuário (botões A-/A+), sem
@@ -260,36 +273,80 @@
   #lyrics-content{font-family:inherit; font-size:16px; line-height:1.6; white-space:pre-wrap; min-height:300px;}
 
   /* Barra de ferramentas da música — pílula flutuante em vidro fosco */
-  .song-toolbar{
-    position:fixed; bottom:0; left:0; right:0; display:flex; justify-content:center;
+  /* ---------- Barra flutuante do leitor (dock) ---------- */
+  .reader-dock{
+    position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:center;
     padding:12px 16px calc(14px + env(safe-area-inset-bottom));
     background:linear-gradient(to top, var(--bg) 55%, rgba(13,13,16,0));
-    pointer-events:none;
+    pointer-events:none; z-index:30;
+    transition:transform .28s var(--ease), opacity .28s var(--ease);
   }
-  .song-toolbar .bar{
-    display:flex; gap:4px; pointer-events:auto;
+  .reader-dock.chrome-hidden{ transform:translateY(140%); opacity:0; }
+  .dock-bar{
+    display:flex; gap:2px; pointer-events:auto; max-width:100%;
     background:rgba(30,30,38,.82);
     backdrop-filter:saturate(180%) blur(22px);
     -webkit-backdrop-filter:saturate(180%) blur(22px);
     border:1px solid var(--line-strong);
-    border-radius:28px; padding:6px; box-shadow:var(--shadow-2);
+    border-radius:26px; padding:6px; box-shadow:var(--shadow-2);
   }
-  .song-toolbar button{
-    background:none; border:none; color:var(--text); font-size:11px; font-weight:600; display:flex;
-    flex-direction:column; align-items:center; gap:3px; padding:8px 15px; border-radius:22px; cursor:pointer;
+  .dock-btn{
+    background:none; border:none; color:var(--text-dim); font-size:10.5px; font-weight:600;
+    display:flex; flex-direction:column; align-items:center; gap:3px; cursor:pointer;
+    padding:8px 12px; border-radius:20px; min-width:56px;
     transition:transform .16s var(--ease), background .2s var(--ease), color .2s var(--ease);
   }
-  .song-toolbar button:active{transform:scale(.93);}
-  .song-toolbar button.on{background:var(--accent-grad); color:#fff; font-weight:700; box-shadow:0 4px 14px var(--accent-soft);}
-  .scroll-speed{
-    position:fixed; bottom:86px; left:50%; transform:translateX(-50%);
-    background:rgba(30,30,38,.9);
+  .dock-btn svg{width:21px; height:21px;}
+  .dock-ic-txt{font-size:19px; font-weight:800; line-height:21px; height:21px;}
+  .dock-btn:active{transform:scale(.92);}
+  .dock-btn.active{color:#fff;}
+  .dock-btn.active svg{stroke:var(--accent);}
+  .dock-btn.playing{color:#fff;}
+  .dock-btn.playing svg{stroke:var(--accent);}
+  @media (max-width:400px){
+    .dock-btn{min-width:0; padding:8px 9px; font-size:10px;}
+    .dock-btn svg{width:20px; height:20px;}
+  }
+
+  /* ---------- Painéis expansíveis acima do dock ---------- */
+  .dock-panel{
+    position:fixed; left:0; right:0; z-index:29; display:flex; justify-content:center;
+    bottom:calc(78px + env(safe-area-inset-bottom)); padding:0 16px; pointer-events:none;
+    transition:transform .28s var(--ease), opacity .28s var(--ease);
+  }
+  .dock-panel.chrome-hidden{ transform:translateY(140%); opacity:0; }
+  .dp{
+    pointer-events:auto; display:flex; align-items:center; gap:12px;
+    background:rgba(30,30,38,.92);
     backdrop-filter:saturate(180%) blur(20px);
     -webkit-backdrop-filter:saturate(180%) blur(20px);
-    border:1px solid var(--line-strong); border-radius:24px;
-    padding:10px 18px; display:flex; align-items:center; gap:10px; box-shadow:var(--shadow-2);
+    border:1px solid var(--line-strong); border-radius:22px;
+    padding:9px 14px; box-shadow:var(--shadow-2);
+    animation:popIn .18s var(--ease) both;
   }
-  .scroll-speed input[type=range]{width:140px; accent-color:var(--accent);}
+  .dp-scroll{ width:100%; max-width:560px; }
+  .dp-step{
+    background:var(--bg-elev); border:none; color:var(--text); min-width:44px; height:38px;
+    border-radius:12px; font-size:16px; font-weight:800; cursor:pointer; padding:0 12px;
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .16s var(--ease), background .18s var(--ease);
+  }
+  .dp-step:active{transform:scale(.9); background:var(--accent-soft);}
+  .dp-val{min-width:40px; text-align:center; color:var(--accent); font-weight:800; font-size:15px;}
+  .dp-ghost{
+    background:none; border:1px solid var(--line-strong); color:var(--text-dim);
+    border-radius:12px; padding:8px 14px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .dp-ghost:active{background:var(--bg-elev);}
+  .dp-play{
+    background:var(--accent-grad); border:none; color:#fff; width:40px; height:40px;
+    border-radius:50%; font-size:14px; cursor:pointer; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center; box-shadow:0 4px 14px var(--accent-soft);
+  }
+  .dp-play:active{transform:scale(.92);}
+  .dp-speed-ic{font-size:17px; flex-shrink:0; opacity:.9;}
+  /* Slider longo (como no exemplo): ocupa toda a largura entre os ícones. */
+  .dp-scroll input[type=range]{flex:1 1 auto; min-width:0; accent-color:var(--accent); height:26px;}
 
   /* ---------- Formulário ---------- */
   .form-wrap{padding:18px; overflow-y:auto; flex:1; padding-bottom:110px;}
@@ -544,7 +601,9 @@
      assim dá para navegar pelo app inteiro (inclusive criar uma nova cifra)
      sem precisar sair da tela cheia. */
   body.presentation-mode .song-header{ display:none !important; }
-  body.presentation-mode.fs-on-song .chord-content{ padding-top:calc(62px + env(safe-area-inset-top)); }
+  body.presentation-mode .reader-dock,
+  body.presentation-mode .dock-panel{ display:none !important; }
+  body.presentation-mode.fs-on-song .chord-content{ padding-top:calc(62px + env(safe-area-inset-top)); padding-bottom:40px; }
 
   #fullscreen-icon-song svg{ width:18px; height:18px; display:block; margin:0 auto; }
 
@@ -1016,57 +1075,80 @@
 
 <!-- ===================== SONG VIEW SCREEN ===================== -->
 <div class="screen" id="screen-song">
-  <div class="song-header">
+  <!-- Cabeçalho fino (nome + artista): fica no topo mas some ao rolar a cifra
+       para baixo e reaparece ao rolar para cima. Sobrepõe a cifra (glass), para
+       dar mais tela à leitura. -->
+  <div class="song-header" id="song-header">
     <button class="back-btn" onclick="backFromSong()">←</button>
-    <h1 id="song-title" style="margin-top:8px;"></h1>
-    <div class="artist" id="song-artist"></div>
-    <div class="song-controls">
-      <!-- Switch deslizante: alterna a MESMA música entre a visão da cifra (com
-           acordes) e a visão só-letra (para os cantores). Respeita o design
-           segmentado do app; o "thumb" desliza conforme body.lyrics-mode. -->
-      <div class="mode-switch" role="tablist" aria-label="Alternar entre cifra e letra">
-        <span class="mode-switch-thumb" aria-hidden="true"></span>
-        <button class="mode-opt" id="mode-opt-cifra" role="tab" onclick="setSongMode('cifra')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-          Cifra
-        </button>
-        <button class="mode-opt" id="mode-opt-letra" role="tab" onclick="setSongMode('letra')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
-          Letra
-        </button>
-      </div>
-      <!-- Controle de tom: só faz sentido na visão da cifra. -->
-      <div class="transpose-ctrl cifra-only">
-        <button onclick="transposeSong(-1)">−</button>
-        <span class="val" id="song-tom-display">C</span>
-        <button onclick="transposeSong(1)">＋</button>
-      </div>
-      <!-- Selo do estado da letra (automática / editada): só na visão de letra. -->
-      <span class="lyrics-badge letra-only"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="lyrics-badge-text">Letra</span></span>
-      <span class="spacer"></span>
-      <!-- Apresentar (telão) fica sempre à mão nos dois modos. -->
-      <button class="pill accent" onclick="openPresentMenu(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 8.2l4.5 2.8-4.5 2.8V8.2z" fill="currentColor" stroke="none"/><line x1="8" y1="21" x2="16" y2="21"/></svg> Apresentar</button>
-      <!-- Edição independente: acordes numa visão, letra na outra. -->
-      <button class="pill cifra-only" onclick="openEdit(currentSongId)">✎ Editar</button>
-      <button class="pill letra-only" onclick="openLyricsEdit(currentSongId)">✎ Editar letra</button>
-      <button class="pill" onclick="openSongMenu()" aria-label="Mais opções">⋯</button>
+    <div class="song-head-info">
+      <h1 id="song-title"></h1>
+      <div class="artist" id="song-artist"></div>
     </div>
-  </div>
-  <div class="chord-content" id="chord-content"></div>
-  <div class="song-toolbar">
-    <div class="bar">
-      <button id="scroll-toggle-btn" onclick="toggleAutoScroll()">
-        <span id="scroll-icon">▶</span><span id="scroll-label">Rolagem</span>
+    <!-- Switch Cifra/Letra continua no topo, ligado à identidade da música. -->
+    <div class="mode-switch" role="tablist" aria-label="Alternar entre cifra e letra">
+      <span class="mode-switch-thumb" aria-hidden="true"></span>
+      <button class="mode-opt" id="mode-opt-cifra" role="tab" onclick="setSongMode('cifra')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        Cifra
       </button>
-      <button onclick="adjustFont(-1)"><span>A−</span>Fonte</button>
-      <button onclick="adjustFont(1)"><span>A+</span>Fonte</button>
-      <button id="fullscreen-btn-song" onclick="toggleFullscreen()"><span id="fullscreen-icon-song"></span><span id="fullscreen-label-song">Tela cheia</span></button>
+      <button class="mode-opt" id="mode-opt-letra" role="tab" onclick="setSongMode('letra')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+        Letra
+      </button>
+    </div>
+    <!-- Selo do estado da letra (automática / editada): só na visão de letra. -->
+    <span class="lyrics-badge letra-only" id="lyrics-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="lyrics-badge-text">Letra</span></span>
+  </div>
+
+  <div class="chord-content" id="chord-content"></div>
+
+  <!-- Painéis expansíveis (Tom / Fonte / Rolagem), aparecem acima da barra.
+       Só um fica visível por vez. Ficam pré-montados para manter os IDs. -->
+  <div class="dock-panel" id="dock-panel" hidden>
+    <div class="dp dp-tom" data-panel="tom" hidden>
+      <button class="dp-step" onclick="transposeSong(-1)" aria-label="Descer meio-tom">−</button>
+      <span class="dp-val" id="song-tom-display">C</span>
+      <button class="dp-step" onclick="transposeSong(1)" aria-label="Subir meio-tom">＋</button>
+      <button class="dp-ghost" onclick="resetTranspose()">Original</button>
+    </div>
+    <div class="dp dp-font" data-panel="font" hidden>
+      <button class="dp-step" onclick="adjustFont(-1)" aria-label="Diminuir fonte">A−</button>
+      <span class="dp-val" id="font-size-display">15</span>
+      <button class="dp-step" onclick="adjustFont(1)" aria-label="Aumentar fonte">A＋</button>
+    </div>
+    <div class="dp dp-scroll" data-panel="scroll" hidden>
+      <button class="dp-play" id="scroll-toggle-btn" onclick="toggleAutoScroll()" aria-label="Iniciar/parar rolagem"><span id="scroll-icon">▶</span></button>
+      <span class="dp-speed-ic" aria-hidden="true">🐢</span>
+      <input type="range" min="5" max="80" value="20" id="scroll-speed-range" oninput="setScrollSpeed(this.value)" aria-label="Velocidade da rolagem">
+      <span class="dp-speed-ic" aria-hidden="true">🐇</span>
     </div>
   </div>
-  <div class="scroll-speed" id="scroll-speed-panel" style="display:none;">
-    <span style="font-size:12px;color:var(--text-dim);">Lenta</span>
-    <input type="range" min="5" max="80" value="20" id="scroll-speed-range" oninput="setScrollSpeed(this.value)">
-    <span style="font-size:12px;color:var(--text-dim);">Rápida</span>
+
+  <!-- Barra flutuante inferior com as opções do leitor. Some ao rolar para
+       baixo e volta ao rolar para cima (junto com o cabeçalho). -->
+  <div class="reader-dock" id="reader-dock">
+    <div class="dock-bar">
+      <button class="dock-btn cifra-only" id="dock-tom" onclick="toggleDockPanel('tom', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v18M7 8l5-5 5 5M7 16l5 5 5-5"/></svg>
+        <span>Tom</span>
+      </button>
+      <button class="dock-btn" id="dock-font" onclick="toggleDockPanel('font', this)">
+        <span class="dock-ic-txt">A</span>
+        <span>Fonte</span>
+      </button>
+      <button class="dock-btn" id="dock-scroll" onclick="toggleDockPanel('scroll', this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 4v13M6 12l6 6 6-6"/></svg>
+        <span>Rolagem</span>
+      </button>
+      <button class="dock-btn" id="dock-present" onclick="openPresentMenu(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 8.2l4.5 2.8-4.5 2.8V8.2z" fill="currentColor" stroke="none"/><line x1="8" y1="21" x2="16" y2="21"/></svg>
+        <span>Apresentar</span>
+      </button>
+      <button class="dock-btn" id="dock-options" onclick="openSongOptions(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>
+        <span>Opções</span>
+      </button>
+    </div>
   </div>
 </div>
 
@@ -1496,7 +1578,7 @@ function restoreNavState(state){
     cameFrom = state.cameFrom || 'cifras';
     lyricsMode = !!state.lyrics;
     const s = songs.find(x=>x.id===state.songId);
-    if(s){ currentTranspose = (typeof s.transpose==='number') ? s.transpose : 0; refreshSongView(s); showScreen('song'); } else { showScreen('cifras'); }
+    if(s){ currentTranspose = (typeof s.transpose==='number') ? s.transpose : 0; refreshSongView(s); showScreen('song'); onSongViewShown(); } else { showScreen('cifras'); }
     return;
   }
   if(state.screen==='edit'){
@@ -2043,6 +2125,8 @@ function setSongMode(mode){
   const s = songs.find(x=>x.id===currentSongId);
   if(s) refreshSongView(s);
   stopAutoScroll();
+  closeDockPanel();
+  requestAnimationFrame(updateReaderInsets);
   if(history.state && history.state.screen==='song'){
     replaceNavState(Object.assign({}, history.state, {lyrics:lyricsMode}));
   }
@@ -2061,6 +2145,7 @@ function openSong(id, from, opts){
   currentTranspose = (typeof s.transpose==='number') ? s.transpose : 0;
   refreshSongView(s);
   showScreen('song');
+  onSongViewShown();
   // Empilha (ou substitui, quando vindo de "Salvar") um estado no histórico do
   // navegador, para que o botão "voltar" saia da cifra em vez de fechar a página.
   if(!opts.skipHistory){
@@ -3038,6 +3123,7 @@ function transposeSong(delta){
 function adjustFont(delta){
   fontSize = Math.max(11, Math.min(26, fontSize+delta));
   document.getElementById('chord-content').style.fontSize = fontSize+'px';
+  const disp = document.getElementById('font-size-display'); if(disp) disp.textContent = fontSize;
   // A quebra de linha (que mantém acorde e letra alinhados) depende de quantos
   // caracteres cabem na largura do aparelho no tamanho de fonte atual — então
   // precisa recalcular o conteúdo sempre que a fonte muda.
@@ -3048,7 +3134,7 @@ function adjustFont(delta){
 // música — telão em tela cheia, modo apresentador (2 telas) e edição dos slides.
 // Abre como popover ancorado logo abaixo do botão (mais direto no computador).
 function openPresentMenu(anchor){
-  anchor = anchor || document.querySelector('.song-controls .pill.accent');
+  anchor = anchor || document.getElementById('dock-present');
   showModal(`
     <div class="action-sheet">
       <button onclick="closeModal(); openPresentation(currentSongId)">▶ Tela cheia</button>
@@ -3117,10 +3203,10 @@ function startAutoScroll(){
     return;
   }
   scrolling = true;
-  document.getElementById('scroll-icon').textContent = '❚❚';
-  document.getElementById('scroll-label').textContent = 'Parar';
-  document.getElementById('scroll-toggle-btn').classList.add('on');
-  document.getElementById('scroll-speed-panel').style.display = 'flex';
+  const ic = document.getElementById('scroll-icon'); if(ic) ic.textContent = '❚❚';
+  const dockScroll = document.getElementById('dock-scroll'); if(dockScroll) dockScroll.classList.add('playing');
+  // Garante que o painel da rolagem (slider) esteja aberto para ajustar a velocidade.
+  openDockPanel('scroll');
   lastTs = null;
   // Guarda a posição em uma variável própria com casas decimais. O navegador
   // pode arredondar scrollTop para inteiro internamente (comum em desktop/iPad);
@@ -3162,14 +3248,8 @@ function startAutoScroll(){
 function stopAutoScroll(){
   scrolling = false;
   if(scrollRAF) cancelAnimationFrame(scrollRAF);
-  const btn = document.getElementById('scroll-toggle-btn');
-  if(btn){
-    document.getElementById('scroll-icon').textContent = '▶';
-    document.getElementById('scroll-label').textContent = 'Rolagem';
-    btn.classList.remove('on');
-  }
-  const panel = document.getElementById('scroll-speed-panel');
-  if(panel) panel.style.display = 'none';
+  const ic = document.getElementById('scroll-icon'); if(ic) ic.textContent = '▶';
+  const dockScroll = document.getElementById('dock-scroll'); if(dockScroll) dockScroll.classList.remove('playing');
 }
 function setScrollSpeed(v){ scrollSpeed = Number(v); }
 
@@ -3198,6 +3278,100 @@ function setScrollSpeed(v){ scrollSpeed = Number(v); }
   el.addEventListener('pointercancel', end, {passive:true});
   el.addEventListener('wheel', ()=>{ begin(); end(); }, {passive:true});
 })();
+
+/* ---------------- DOCK / CABEÇALHO DO LEITOR ----------------
+   As opções do leitor ficam numa barra flutuante inferior (dock). Tom, Fonte e
+   Rolagem abrem um painel logo acima da barra. Cabeçalho e dock somem ao rolar a
+   cifra para baixo e voltam ao rolar para cima, dando mais tela à leitura. */
+let _openDockPanelKind = null;
+function openDockPanel(kind){
+  const panel = document.getElementById('dock-panel');
+  if(!panel) return;
+  panel.hidden = false;
+  panel.querySelectorAll('.dp').forEach(dp=>{ dp.hidden = (dp.dataset.panel !== kind); });
+  document.querySelectorAll('.dock-btn').forEach(b=>b.classList.remove('active'));
+  const map = {tom:'dock-tom', font:'dock-font', scroll:'dock-scroll'};
+  const btn = document.getElementById(map[kind]); if(btn) btn.classList.add('active');
+  _openDockPanelKind = kind;
+}
+function closeDockPanel(){
+  const panel = document.getElementById('dock-panel');
+  if(panel){ panel.hidden = true; panel.querySelectorAll('.dp').forEach(dp=>dp.hidden = true); }
+  document.querySelectorAll('.dock-btn').forEach(b=>b.classList.remove('active'));
+  _openDockPanelKind = null;
+}
+function toggleDockPanel(kind){
+  if(_openDockPanelKind === kind) closeDockPanel();
+  else openDockPanel(kind);
+}
+function resetTranspose(){
+  if(currentTranspose === 0) return;
+  currentTranspose = 0;
+  const s = songs.find(x=>x.id===currentSongId);
+  if(s) refreshSongView(s);
+  scheduleTransposeSave(currentSongId, 0);
+}
+// Esconde/mostra o cabeçalho e o dock (e fecha o painel aberto ao esconder).
+let _chromeHidden = false;
+function setChromeHidden(hide){
+  if(hide === _chromeHidden) return;
+  _chromeHidden = hide;
+  ['song-header','reader-dock','dock-panel'].forEach(id=>{
+    const el = document.getElementById(id); if(el) el.classList.toggle('chrome-hidden', hide);
+  });
+  if(hide) closeDockPanel();
+}
+// O cabeçalho é sobreposto (absolute); reservamos espaço no topo da cifra igual
+// à altura dele. No modo tela cheia, deixamos o CSS específico cuidar do padding.
+function updateReaderInsets(){
+  const cc = document.getElementById('chord-content');
+  if(!cc) return;
+  if(presentationMode){ cc.style.paddingTop = ''; return; }
+  const header = document.getElementById('song-header');
+  if(header && header.offsetHeight) cc.style.paddingTop = (header.offsetHeight + 12) + 'px';
+}
+// Chamado sempre que a tela da música passa a ser exibida (abrir/voltar).
+function onSongViewShown(){
+  setChromeHidden(false);
+  closeDockPanel();
+  _lastReaderScroll = 0;
+  const cc = document.getElementById('chord-content'); if(cc) cc.scrollTop = 0;
+  requestAnimationFrame(updateReaderInsets);
+}
+// Esconder ao rolar para baixo / mostrar ao rolar para cima. Só reage ao gesto
+// do usuário — a rolagem automática (programática) não mexe no cabeçalho/dock.
+let _lastReaderScroll = 0;
+function onReaderScroll(){
+  const el = document.getElementById('chord-content');
+  if(!el) return;
+  if(scrolling && !userInteracting){ _lastReaderScroll = el.scrollTop; return; }
+  const y = el.scrollTop;
+  const dy = y - _lastReaderScroll;
+  if(y <= 6) setChromeHidden(false);
+  else if(dy > 8) setChromeHidden(true);
+  else if(dy < -8) setChromeHidden(false);
+  _lastReaderScroll = y;
+}
+(function initReaderChrome(){
+  const el = document.getElementById('chord-content');
+  if(el) el.addEventListener('scroll', onReaderScroll, {passive:true});
+  window.addEventListener('resize', updateReaderInsets);
+})();
+// Menu "Opções" do leitor: edição independente (cifra/letra), listas, tela
+// cheia de leitura e exclusão. Abre como popover ancorado ao botão do dock.
+function openSongOptions(anchor){
+  anchor = anchor || document.getElementById('dock-options');
+  const fsLabel = presentationMode ? 'Sair da tela cheia' : 'Tela cheia';
+  showModal(`
+    <div class="action-sheet">
+      <button onclick="closeModal(); openEdit(currentSongId)">✎ Editar cifra</button>
+      <button onclick="closeModal(); openLyricsEdit(currentSongId)">✎ Editar letra</button>
+      <button onclick="closeModal(); manageSongFolders(currentSongId)">＋ Adicionar a lista</button>
+      <button onclick="closeModal(); toggleFullscreen()">⛶ ${fsLabel}</button>
+      <button class="danger" onclick="deleteCurrentSong()">Excluir música</button>
+    </div>
+  `, {anchor: anchor});
+}
 
 /* ---------------- TELA CHEIA ---------------- */
 // Importante: o Safari do iPhone/iPad NÃO suporta bem a API de tela cheia do
@@ -3245,6 +3419,10 @@ async function toggleFullscreen(){
   }
   updateFullscreenIcons();
   updateFsBackVisibility();
+  // Ajusta o espaçamento da cifra e fecha o painel/dock ao entrar/sair da tela cheia.
+  closeDockPanel();
+  if(presentationMode) setChromeHidden(false);
+  requestAnimationFrame(updateReaderInsets);
 }
 function updateFullscreenIcons(){
   const on = presentationMode;
@@ -3824,6 +4002,7 @@ Object.assign(window, {
   showScreen, goToTab, renderCifras, openFolder, openNewFolder, confirmNewFolder, openFolderMenu,
   renameFolder, confirmRenameFolder, deleteFolder, openSong, backFromSong, transposeSong, setSongMode,
   adjustFont, openSongMenu, openSongMenuFor, manageSongFolders, confirmSongFolders,
+  toggleDockPanel, resetTranspose, openSongOptions,
   toggleAutoScroll, setScrollSpeed, openEdit, cancelEdit, saveSong, deleteCurrentSong,
   confirmDeleteSong, openImportExport, exportFile, closeModal, toggleFullscreen, openAppMenu,
   doLogin, doForgotPassword, doLogout,
