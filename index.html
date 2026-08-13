@@ -365,6 +365,30 @@
   .action-sheet button.danger{color:var(--danger);}
   .action-sheet button:last-child{border-bottom:none;}
 
+  /* ---------- Popover ancorado (menu "Apresentar") ----------
+     Aparece logo abaixo do botão que o abriu — mais direto no computador, sem
+     precisar ir até a folha inferior. Usa o mesmo backdrop/histórico do modal
+     (voltar, clicar fora e Esc fecham). Em telas estreitas, é limitado à
+     largura da viewport. */
+  .modal-backdrop.popover{ align-items:flex-start; background:rgba(0,0,0,.32);
+    -webkit-backdrop-filter:none; backdrop-filter:none; }
+  .modal.as-popover{
+    position:fixed; width:auto; min-width:232px; max-width:min(300px, 92vw);
+    border-radius:14px; border:1px solid var(--line-strong);
+    padding:7px; box-shadow:0 18px 50px rgba(0,0,0,.55);
+    animation:popIn .18s var(--ease) both;
+  }
+  /* Sobrepõe a animação de folha (sheetUp) e some com a alça. */
+  .modal-backdrop.show .modal.as-popover{ animation:popIn .18s var(--ease) both; }
+  .modal.as-popover::before{ display:none; }
+  @keyframes popIn{ from{opacity:0; transform:translateY(-6px) scale(.985);} to{opacity:1; transform:none;} }
+  .as-popover .action-sheet button{
+    border-bottom:none; border-radius:10px; padding:12px 12px; font-size:15px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .as-popover .action-sheet button:hover{ background:var(--bg-elev-2); }
+  .as-popover .action-sheet button:active{ opacity:1; background:var(--bg-elev-2); }
+
   .back-btn{
     background:rgba(255,255,255,.06); border:none; color:var(--text); font-size:19px;
     width:38px; height:38px; border-radius:50%; cursor:pointer;
@@ -1021,7 +1045,7 @@
       <span class="lyrics-badge letra-only"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="lyrics-badge-text">Letra</span></span>
       <span class="spacer"></span>
       <!-- Apresentar (telão) fica sempre à mão nos dois modos. -->
-      <button class="pill accent" onclick="openPresentMenu()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 8.2l4.5 2.8-4.5 2.8V8.2z" fill="currentColor" stroke="none"/><line x1="8" y1="21" x2="16" y2="21"/></svg> Apresentar</button>
+      <button class="pill accent" onclick="openPresentMenu(this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M10 8.2l4.5 2.8-4.5 2.8V8.2z" fill="currentColor" stroke="none"/><line x1="8" y1="21" x2="16" y2="21"/></svg> Apresentar</button>
       <!-- Edição independente: acordes numa visão, letra na outra. -->
       <button class="pill cifra-only" onclick="openEdit(currentSongId)">✎ Editar</button>
       <button class="pill letra-only" onclick="openLyricsEdit(currentSongId)">✎ Editar letra</button>
@@ -3022,14 +3046,16 @@ function adjustFont(delta){
 }
 // Menu do botão "Apresentar": reúne as três formas de apresentar/preparar a
 // música — telão em tela cheia, modo apresentador (2 telas) e edição dos slides.
-function openPresentMenu(){
+// Abre como popover ancorado logo abaixo do botão (mais direto no computador).
+function openPresentMenu(anchor){
+  anchor = anchor || document.querySelector('.song-controls .pill.accent');
   showModal(`
     <div class="action-sheet">
       <button onclick="closeModal(); openPresentation(currentSongId)">▶ Tela cheia</button>
       <button onclick="closeModal(); openPresenter(currentSongId)">🖥 Modo apresentador (2 telas)</button>
       <button onclick="closeModal(); openSlidesEdit(currentSongId)">▦ Editar slides</button>
     </div>
-  `);
+  `, {anchor: anchor});
 }
 function openSongMenu(){
   showModal(`
@@ -3706,11 +3732,27 @@ function exportFile(){
 }
 
 /* ---------------- MODAL / TOAST ---------------- */
-function showModal(html){
+// Guarda o elemento-âncora enquanto um popover estiver aberto, para reposicionar
+// caso a janela seja redimensionada.
+let _popoverAnchor = null;
+function showModal(html, opts){
+  opts = opts || {};
   const backdrop = document.getElementById('modal-backdrop');
+  const panel = document.getElementById('modal-body');
   const alreadyOpen = backdrop.classList.contains('show');
-  document.getElementById('modal-body').innerHTML = html;
+  panel.innerHTML = html;
+  // Limpa qualquer resíduo de popover de um uso anterior antes de decidir o modo.
+  backdrop.classList.remove('popover');
+  panel.classList.remove('as-popover');
+  panel.style.left = ''; panel.style.top = '';
+  _popoverAnchor = null;
+  if(opts.anchor){
+    backdrop.classList.add('popover');
+    panel.classList.add('as-popover');
+    _popoverAnchor = opts.anchor;
+  }
   backdrop.classList.add('show');
+  if(opts.anchor) positionPopover(panel, opts.anchor);
   // Só empilha UM estado de histórico por modal. Quando um modal já está aberto
   // e estamos apenas trocando o conteúdo (ex.: modal do artista -> busca de capa
   // -> volta pro modal do artista), NÃO empilhamos de novo — caso contrário o
@@ -3719,9 +3761,38 @@ function showModal(html){
     pushNavState(Object.assign({}, history.state, {modal:true}));
   }
 }
+// Posiciona o painel logo abaixo do botão-âncora (ou acima, se não couber),
+// alinhado pela direita e sempre dentro da viewport.
+function positionPopover(panel, anchor){
+  const r = anchor.getBoundingClientRect();
+  const gap = 8, margin = 8;
+  const pw = panel.offsetWidth, ph = panel.offsetHeight;
+  let left = r.right - pw;                 // alinhado à direita do botão
+  if(left < margin) left = r.left;         // se estourar à esquerda, alinha à esquerda
+  left = Math.max(margin, Math.min(left, window.innerWidth - pw - margin));
+  let top = r.bottom + gap;                // logo abaixo do botão
+  if(top + ph > window.innerHeight - margin){
+    const above = r.top - gap - ph;        // tenta acima se não couber abaixo
+    top = above >= margin ? above : Math.max(margin, window.innerHeight - ph - margin);
+  }
+  panel.style.left = Math.round(left) + 'px';
+  panel.style.top  = Math.round(top)  + 'px';
+}
+window.addEventListener('resize', function(){
+  const backdrop = document.getElementById('modal-backdrop');
+  if(_popoverAnchor && backdrop.classList.contains('show')){
+    positionPopover(document.getElementById('modal-body'), _popoverAnchor);
+  }
+});
 function closeModal(){
   const backdrop = document.getElementById('modal-backdrop');
   backdrop.classList.remove('show');
+  // Limpa o estado do popover ancorado (se estava em uso).
+  backdrop.classList.remove('popover');
+  const panel = document.getElementById('modal-body');
+  panel.classList.remove('as-popover');
+  panel.style.left = ''; panel.style.top = '';
+  _popoverAnchor = null;
   // A entrada de histórico criada por showModal() não pode virar uma duplicata
   // da tela de baixo, senão o "voltar" precisa de dois toques. Tratamos isso de
   // forma ADIADA (microtask), depois que o restante da ação síncrona rodou:
