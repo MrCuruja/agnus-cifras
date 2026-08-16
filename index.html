@@ -166,10 +166,12 @@
   /* Cabeçalho DENTRO do container rolável: rola junto com a cifra e some ao
      descer. Sem sobreposição/blur — é um bloco normal no topo do conteúdo. */
   .song-header{
-    display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+    display:flex; flex-direction:column; gap:11px;
     padding:calc(12px + env(safe-area-inset-top)) 16px 14px;
     border-bottom:1px solid var(--line); background:transparent;
   }
+  .song-head-top{display:flex; align-items:center; gap:12px;}
+  .song-head-controls{display:flex; align-items:center; gap:10px;}
   .song-head-info{flex:1; min-width:0;}
   .song-header h1{font-size:20px; margin:0; font-weight:800; letter-spacing:-0.02em;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -461,6 +463,7 @@
     transition:transform .16s var(--ease), background .18s var(--ease);
   }
   .back-btn:active{transform:scale(.9); background:rgba(255,255,255,.12);}
+  .back-btn svg, #fs-back svg{ width:22px; height:22px; display:block; }
   .folder-header{
     display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid var(--line); flex-shrink:0;
     background:rgba(19,19,23,.72);
@@ -1061,7 +1064,7 @@
 <!-- ===================== ARTIST VIEW SCREEN ===================== -->
 <div class="screen" id="screen-artist">
   <div class="folder-header">
-    <button class="back-btn" onclick="history.back()">←</button>
+    <button class="back-btn" onclick="history.back()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
     <h2 id="artist-title" style="flex:1;">Artista</h2>
     <button class="icon-btn" onclick="editCurrentArtist()" title="Editar artista">✎</button>
     <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
@@ -1073,7 +1076,7 @@
 <!-- ===================== FOLDER VIEW SCREEN ===================== -->
 <div class="screen" id="screen-folder">
   <div class="folder-header">
-    <button class="back-btn" onclick="history.back()">←</button>
+    <button class="back-btn" onclick="history.back()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
     <h2 id="folder-title">Pasta</h2>
     <div style="flex:1"></div>
     <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
@@ -1088,25 +1091,29 @@
        começo dela; reaparece ao voltar ao topo. -->
   <div class="chord-scroll" id="chord-scroll">
     <div class="song-header" id="song-header">
-      <button class="back-btn" onclick="backFromSong()">←</button>
-      <div class="song-head-info">
-        <h1 id="song-title"></h1>
-        <div class="artist" id="song-artist"></div>
+      <div class="song-head-top">
+        <button class="back-btn" onclick="backFromSong()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
+        <div class="song-head-info">
+          <h1 id="song-title"></h1>
+          <div class="artist" id="song-artist"></div>
+        </div>
       </div>
-      <!-- Switch Cifra/Letra fica junto do nome, no topo da cifra. -->
-      <div class="mode-switch" role="tablist" aria-label="Alternar entre cifra e letra">
-        <span class="mode-switch-thumb" aria-hidden="true"></span>
-        <button class="mode-opt" id="mode-opt-cifra" role="tab" onclick="setSongMode('cifra')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-          Cifra
-        </button>
-        <button class="mode-opt" id="mode-opt-letra" role="tab" onclick="setSongMode('letra')">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
-          Letra
-        </button>
+      <!-- Seletor Cifra/Letra numa linha própria, para o título usar a largura toda. -->
+      <div class="song-head-controls">
+        <div class="mode-switch" role="tablist" aria-label="Alternar entre cifra e letra">
+          <span class="mode-switch-thumb" aria-hidden="true"></span>
+          <button class="mode-opt" id="mode-opt-cifra" role="tab" onclick="setSongMode('cifra')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            Cifra
+          </button>
+          <button class="mode-opt" id="mode-opt-letra" role="tab" onclick="setSongMode('letra')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+            Letra
+          </button>
+        </div>
+        <!-- Selo do estado da letra (automática / editada): só na visão de letra. -->
+        <span class="lyrics-badge letra-only" id="lyrics-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="lyrics-badge-text">Letra</span></span>
       </div>
-      <!-- Selo do estado da letra (automática / editada): só na visão de letra. -->
-      <span class="lyrics-badge letra-only" id="lyrics-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="lyrics-badge-text">Letra</span></span>
     </div>
 
     <div class="chord-content" id="chord-content"></div>
@@ -1167,7 +1174,7 @@
 <!-- ===================== EDIT / NEW SCREEN ===================== -->
 <div class="screen" id="screen-edit">
   <header>
-    <button class="back-btn" onclick="cancelEdit()">←</button>
+    <button class="back-btn" onclick="cancelEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
     <div class="title" id="edit-title-label">Nova cifra</div>
     <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
   </header>
@@ -1212,7 +1219,7 @@ Santo, Santo Ele é"></textarea>
 <!-- ===================== EDITAR LETRA SCREEN ===================== -->
 <div class="screen" id="screen-lyrics-edit">
   <header>
-    <button class="back-btn" onclick="cancelLyricsEdit()">←</button>
+    <button class="back-btn" onclick="cancelLyricsEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
     <div class="title">Editar letra</div>
     <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
   </header>
@@ -1234,7 +1241,7 @@ Santo, Santo Ele é"></textarea>
 <!-- ===================== EDITAR SLIDES SCREEN ===================== -->
 <div class="screen" id="screen-slides-edit">
   <header>
-    <button class="back-btn" onclick="cancelSlidesEdit()">←</button>
+    <button class="back-btn" onclick="cancelSlidesEdit()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
     <div class="title">Editar slides</div>
     <button class="icon-btn" onclick="presentFromEditor()" title="Apresentar" aria-label="Apresentar">▶</button>
   </header>
@@ -1278,7 +1285,7 @@ Santo, Santo Ele é"></textarea>
 <div class="toast" id="toast"></div>
 
 <!-- Botões flutuantes de navegação em tela cheia -->
-<button id="fs-back" onclick="backFromSong()" title="Voltar" aria-label="Voltar">←</button>
+<button id="fs-back" onclick="backFromSong()" title="Voltar" aria-label="Voltar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
 <button id="fs-exit" onclick="toggleFullscreen()" title="Sair da tela cheia" aria-label="Sair da tela cheia"><span id="fs-exit-ic"></span>Sair</button>
 
 <!-- ===================== APRESENTAÇÃO (SLIDES / TELÃO) ===================== -->
