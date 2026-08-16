@@ -163,18 +163,13 @@
 
   /* ---------- Tela da música ---------- */
   #screen-song{position:relative;}
-  /* Cabeçalho sobreposto (glass) que desliza para fora ao rolar para baixo. */
+  /* Cabeçalho DENTRO do container rolável: rola junto com a cifra e some ao
+     descer. Sem sobreposição/blur — é um bloco normal no topo do conteúdo. */
   .song-header{
-    position:absolute; top:0; left:0; right:0; z-index:20;
     display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-    padding:calc(12px + env(safe-area-inset-top)) 16px 12px;
-    border-bottom:1px solid var(--line);
-    background:rgba(19,19,23,.72);
-    backdrop-filter:saturate(180%) blur(20px);
-    -webkit-backdrop-filter:saturate(180%) blur(20px);
-    transition:transform .28s var(--ease), opacity .28s var(--ease);
+    padding:calc(12px + env(safe-area-inset-top)) 16px 14px;
+    border-bottom:1px solid var(--line); background:transparent;
   }
-  .song-header.chrome-hidden{ transform:translateY(-100%); opacity:0; pointer-events:none; }
   .song-head-info{flex:1; min-width:0;}
   .song-header h1{font-size:20px; margin:0; font-weight:800; letter-spacing:-0.02em;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
@@ -200,12 +195,16 @@
   .transpose-ctrl .val{min-width:38px; text-align:center; color:var(--accent); font-weight:800; font-size:14px;}
 
   /* Área da cifra — o comportamento de quebra de linha é FUNCIONAL, mantido intacto. */
+  /* O container rolável envolve o cabeçalho + a cifra. */
+  .chord-scroll{
+    flex:1; height:100%; overflow-y:auto; overflow-x:hidden;
+    overscroll-behavior:contain; scroll-behavior:auto; padding-bottom:132px;
+  }
   .chord-content{
-    padding:96px 18px 132px; overflow-y:auto; overflow-x:hidden; flex:1; height:100%;
-    overscroll-behavior:contain;
+    padding:10px 18px 0;
     font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
     font-size:15px; line-height:1.6; white-space:pre-wrap; word-wrap:break-word;
-    max-width:100%; scroll-behavior:auto;
+    max-width:100%;
   }
   /* Cada linha da cifra precisa quebrar sozinha para se adaptar à largura do
      aparelho e ao tamanho de fonte escolhido pelo usuário (botões A-/A+), sem
@@ -611,7 +610,8 @@
      sem precisar sair da tela cheia. */
   body.presentation-mode .song-header{ display:none !important; }
   body.presentation-mode .reader-dock{ display:none !important; }
-  body.presentation-mode.fs-on-song .chord-content{ padding-top:calc(62px + env(safe-area-inset-top)); padding-bottom:40px; }
+  body.presentation-mode.fs-on-song .chord-content{ padding-top:calc(62px + env(safe-area-inset-top)); }
+  body.presentation-mode.fs-on-song .chord-scroll{ padding-bottom:40px; }
 
   #fullscreen-icon-song svg{ width:18px; height:18px; display:block; margin:0 auto; }
 
@@ -1083,32 +1083,34 @@
 
 <!-- ===================== SONG VIEW SCREEN ===================== -->
 <div class="screen" id="screen-song">
-  <!-- Cabeçalho fino (nome + artista): fica no topo mas some ao rolar a cifra
-       para baixo e reaparece ao rolar para cima. Sobrepõe a cifra (glass), para
-       dar mais tela à leitura. -->
-  <div class="song-header" id="song-header">
-    <button class="back-btn" onclick="backFromSong()">←</button>
-    <div class="song-head-info">
-      <h1 id="song-title"></h1>
-      <div class="artist" id="song-artist"></div>
+  <!-- Cabeçalho + cifra ficam no MESMO container rolável (#chord-scroll): assim
+       o cabeçalho faz parte da cifra e some ao rolar para baixo, junto com o
+       começo dela; reaparece ao voltar ao topo. -->
+  <div class="chord-scroll" id="chord-scroll">
+    <div class="song-header" id="song-header">
+      <button class="back-btn" onclick="backFromSong()">←</button>
+      <div class="song-head-info">
+        <h1 id="song-title"></h1>
+        <div class="artist" id="song-artist"></div>
+      </div>
+      <!-- Switch Cifra/Letra fica junto do nome, no topo da cifra. -->
+      <div class="mode-switch" role="tablist" aria-label="Alternar entre cifra e letra">
+        <span class="mode-switch-thumb" aria-hidden="true"></span>
+        <button class="mode-opt" id="mode-opt-cifra" role="tab" onclick="setSongMode('cifra')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          Cifra
+        </button>
+        <button class="mode-opt" id="mode-opt-letra" role="tab" onclick="setSongMode('letra')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+          Letra
+        </button>
+      </div>
+      <!-- Selo do estado da letra (automática / editada): só na visão de letra. -->
+      <span class="lyrics-badge letra-only" id="lyrics-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="lyrics-badge-text">Letra</span></span>
     </div>
-    <!-- Switch Cifra/Letra continua no topo, ligado à identidade da música. -->
-    <div class="mode-switch" role="tablist" aria-label="Alternar entre cifra e letra">
-      <span class="mode-switch-thumb" aria-hidden="true"></span>
-      <button class="mode-opt" id="mode-opt-cifra" role="tab" onclick="setSongMode('cifra')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
-        Cifra
-      </button>
-      <button class="mode-opt" id="mode-opt-letra" role="tab" onclick="setSongMode('letra')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
-        Letra
-      </button>
-    </div>
-    <!-- Selo do estado da letra (automática / editada): só na visão de letra. -->
-    <span class="lyrics-badge letra-only" id="lyrics-badge"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><path d="M19 10v1a7 7 0 0 1-14 0v-1"/><line x1="12" y1="18" x2="12" y2="22"/></svg><span id="lyrics-badge-text">Letra</span></span>
-  </div>
 
-  <div class="chord-content" id="chord-content"></div>
+    <div class="chord-content" id="chord-content"></div>
+  </div>
 
   <!-- Barra flutuante inferior do leitor. Ao acionar Tom/Fonte/Rolagem, o
        painel correspondente SUBSTITUI a barra (troca vertical); o botão ✕ de
@@ -3205,7 +3207,7 @@ async function confirmSongFolders(id){
 let scrolling = false, scrollSpeed = 20, scrollRAF = null, lastTs = null, scrollAccum = 0, lastSet = 0, userInteracting = false, interactionTimeout = null;
 function toggleAutoScroll(){ scrolling ? stopAutoScroll() : startAutoScroll(); }
 function startAutoScroll(){
-  const content = document.getElementById('chord-content');
+  const content = document.getElementById('chord-scroll');
   // Se o conteúdo já cabe inteiro na tela (comum em telas grandes como iPad/PC,
   // ou em cifras curtas), não há nada para rolar — evita ligar e desligar sozinho.
   if(content.scrollHeight - content.clientHeight < 4){
@@ -3270,10 +3272,10 @@ function setScrollSpeed(v){ scrollSpeed = Number(v); }
 // Permite rolar manualmente (dedo, roda do mouse ou barra de rolagem) mesmo com
 // a rolagem automática ligada. Enquanto há interação, a animação para de forçar
 // a posição; quando o gesto termina e a inércia assenta, ela retoma de onde o
-// usuário parou. Os ouvintes ficam no #chord-content (elemento fixo, só o
+// usuário parou. Os ouvintes ficam no #chord-scroll (elemento fixo, só o
 // conteúdo interno muda), então valem para qualquer música aberta.
 (function enableManualScrollDuringAuto(){
-  const el = document.getElementById('chord-content');
+  const el = document.getElementById('chord-scroll');
   if(!el) return;
   const begin = ()=>{ userInteracting = true; clearTimeout(interactionTimeout); };
   const end = ()=>{
@@ -3373,28 +3375,26 @@ function readerActivity(){
   setChromeHidden(false);
   scheduleChromeIdle();
 }
-// O cabeçalho é sobreposto (absolute); reservamos espaço no topo da cifra igual
-// à altura dele. No modo tela cheia, deixamos o CSS específico cuidar do padding.
+// O cabeçalho agora rola dentro do container (faz parte da cifra), então não há
+// mais sobreposição a compensar. Mantida só para limpar qualquer padding inline
+// antigo — o espaçamento passa a ser 100% controlado pelo CSS.
 function updateReaderInsets(){
   const cc = document.getElementById('chord-content');
-  if(!cc) return;
-  if(presentationMode){ cc.style.paddingTop = ''; return; }
-  const header = document.getElementById('song-header');
-  if(header && header.offsetHeight) cc.style.paddingTop = (header.offsetHeight + 12) + 'px';
+  if(cc) cc.style.paddingTop = '';
 }
 // Chamado sempre que a tela da música passa a ser exibida (abrir/voltar).
 function onSongViewShown(){
   setChromeHidden(false);
   closeDockPanel();
   _lastReaderScroll = 0;
-  const cc = document.getElementById('chord-content'); if(cc) cc.scrollTop = 0;
+  const cc = document.getElementById('chord-scroll'); if(cc) cc.scrollTop = 0;
   requestAnimationFrame(updateReaderInsets);
 }
 // Esconder ao rolar para baixo / mostrar ao rolar para cima. Só reage ao gesto
 // do usuário — a rolagem automática (programática) não mexe no cabeçalho/dock.
 let _lastReaderScroll = 0;
 function onReaderScroll(){
-  const el = document.getElementById('chord-content');
+  const el = document.getElementById('chord-scroll');
   if(!el) return;
   if(scrolling){
     // Durante a rolagem automática o dock NÃO segue a direção da rolagem: o
@@ -3412,7 +3412,7 @@ function onReaderScroll(){
   _lastReaderScroll = y;
 }
 (function initReaderChrome(){
-  const el = document.getElementById('chord-content');
+  const el = document.getElementById('chord-scroll');
   if(el){
     el.addEventListener('scroll', onReaderScroll, {passive:true});
     // Qualquer toque durante a rolagem automática traz o controle de volta.
