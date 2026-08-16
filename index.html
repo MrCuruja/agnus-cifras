@@ -41,7 +41,7 @@
     --ease:cubic-bezier(.22,.61,.36,1);
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-  html,body{height:100%;}
+  html,body{height:100%; overscroll-behavior:none;}
   body{
     margin:0; background:var(--bg); color:var(--text);
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -202,6 +202,7 @@
   /* Área da cifra — o comportamento de quebra de linha é FUNCIONAL, mantido intacto. */
   .chord-content{
     padding:96px 18px 132px; overflow-y:auto; overflow-x:hidden; flex:1; height:100%;
+    overscroll-behavior:contain;
     font-family:'SFMono-Regular',Consolas,'Liberation Mono',Menlo,monospace;
     font-size:15px; line-height:1.6; white-space:pre-wrap; word-wrap:break-word;
     max-width:100%; scroll-behavior:auto;
@@ -3214,6 +3215,10 @@ function startAutoScroll(){
   scrolling = true;
   const ic = document.getElementById('scroll-icon'); if(ic) ic.textContent = '❚❚';
   const dockScroll = document.getElementById('dock-scroll'); if(dockScroll) dockScroll.classList.add('playing');
+  // Mantém o controle de velocidade visível e começa a contagem para auto-ocultar.
+  openDockPanel('scroll');
+  setChromeHidden(false);
+  scheduleChromeIdle();
   lastTs = null;
   // Guarda a posição em uma variável própria com casas decimais. O navegador
   // pode arredondar scrollTop para inteiro internamente (comum em desktop/iPad);
@@ -3255,6 +3260,8 @@ function startAutoScroll(){
 function stopAutoScroll(){
   scrolling = false;
   if(scrollRAF) cancelAnimationFrame(scrollRAF);
+  clearTimeout(_idleTimer); _idleTimer = null;
+  setChromeHidden(false);
   const ic = document.getElementById('scroll-icon'); if(ic) ic.textContent = '▶';
   const dockScroll = document.getElementById('dock-scroll'); if(dockScroll) dockScroll.classList.remove('playing');
 }
@@ -3339,14 +3346,32 @@ function resetTranspose(){
   scheduleTransposeSave(currentSongId, 0);
 }
 // Esconde/mostra o cabeçalho e o dock (e fecha o painel aberto ao esconder).
+// Esconde/mostra apenas o dock inferior. O cabeçalho (nome + Cifra/Letra) fica
+// SEMPRE fixo no topo. Não fechamos o painel ao esconder: como ele vive dentro
+// do dock, desliza junto e reaparece com o mesmo estado (ex.: controle de
+// velocidade durante a rolagem automática).
 let _chromeHidden = false;
 function setChromeHidden(hide){
   if(hide === _chromeHidden) return;
   _chromeHidden = hide;
-  ['song-header','reader-dock'].forEach(id=>{
-    const el = document.getElementById(id); if(el) el.classList.toggle('chrome-hidden', hide);
-  });
-  if(hide) closeDockPanel();
+  const dock = document.getElementById('reader-dock');
+  if(dock) dock.classList.toggle('chrome-hidden', hide);
+}
+// --- Auto-ocultar por inatividade (só durante a rolagem automática) ---
+// Com a rolagem ligada, o controle de velocidade PERMANECE na tela mesmo ao
+// rolar manualmente. Ele some sozinho após alguns segundos sem toque e volta a
+// qualquer interação (toque/rolagem manual).
+let _idleTimer = null;
+const CHROME_IDLE_MS = 3000;
+function scheduleChromeIdle(){
+  clearTimeout(_idleTimer);
+  if(!scrolling) return;
+  _idleTimer = setTimeout(()=>{ if(scrolling) setChromeHidden(true); }, CHROME_IDLE_MS);
+}
+function readerActivity(){
+  if(!scrolling) return;      // fora da rolagem automática, quem manda é o gesto de rolar
+  setChromeHidden(false);
+  scheduleChromeIdle();
 }
 // O cabeçalho é sobreposto (absolute); reservamos espaço no topo da cifra igual
 // à altura dele. No modo tela cheia, deixamos o CSS específico cuidar do padding.
@@ -3371,7 +3396,14 @@ let _lastReaderScroll = 0;
 function onReaderScroll(){
   const el = document.getElementById('chord-content');
   if(!el) return;
-  if(scrolling && !userInteracting){ _lastReaderScroll = el.scrollTop; return; }
+  if(scrolling){
+    // Durante a rolagem automática o dock NÃO segue a direção da rolagem: o
+    // movimento programático é ignorado e o gesto manual conta como atividade
+    // (mantém o controle visível e reinicia o timer de auto-ocultar).
+    if(userInteracting) readerActivity();
+    _lastReaderScroll = el.scrollTop;
+    return;
+  }
   const y = el.scrollTop;
   const dy = y - _lastReaderScroll;
   if(y <= 6) setChromeHidden(false);
@@ -3381,7 +3413,12 @@ function onReaderScroll(){
 }
 (function initReaderChrome(){
   const el = document.getElementById('chord-content');
-  if(el) el.addEventListener('scroll', onReaderScroll, {passive:true});
+  if(el){
+    el.addEventListener('scroll', onReaderScroll, {passive:true});
+    // Qualquer toque durante a rolagem automática traz o controle de volta.
+    el.addEventListener('touchstart', readerActivity, {passive:true});
+    el.addEventListener('pointerdown', readerActivity, {passive:true});
+  }
   window.addEventListener('resize', updateReaderInsets);
 })();
 // Menu "Opções" do leitor: edição independente (cifra/letra), listas, tela
