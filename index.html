@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -892,11 +892,12 @@
     *{animation:none !important; transition:none !important;}
   }
 
+
   /* Responsive refinement: safe areas, keyboard access, and landscape reading. */
   :root { color-scheme:dark; --reader-max:1040px; }
-  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; }
-  body { height:100vh; height:100dvh; }
-  .screen { min-height:0; min-width:0; }
+  html { -webkit-text-size-adjust:100%; text-size-adjust:100%; touch-action:pan-x pan-y; }
+  body { position:fixed; inset:var(--app-top,0px) 0 auto; height:100vh; height:var(--app-height,100dvh); }
+  .screen { min-height:0; min-width:0; flex:1 1 0; }
   .screen.active { animation-name:screenFade; }
   @keyframes screenFade { from{opacity:0} to{opacity:1} }
   header,.folder-header { padding-top:calc(12px + env(safe-area-inset-top)); padding-left:max(16px,env(safe-area-inset-left)); padding-right:max(16px,env(safe-area-inset-right)); }
@@ -917,12 +918,18 @@
   .form-wrap { min-height:0; padding-bottom:24px; }
   .form-wrap textarea { font-size:16px; }
   .save-bar { position:relative; flex-shrink:0; padding:12px max(16px,env(safe-area-inset-right)) calc(12px + env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left)); }
-  .chord-scroll { min-height:0; scrollbar-gutter:stable; padding-bottom:calc(124px + env(safe-area-inset-bottom)); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
+  .chord-scroll { min-height:0; scrollbar-gutter:stable; padding-bottom:var(--reader-clearance,96px); padding-left:env(safe-area-inset-left); padding-right:env(safe-area-inset-right); }
   .chord-content,.song-header { width:100%; max-width:var(--reader-max); margin-inline:auto; }
   .chord-content { letter-spacing:0; font-variant-ligatures:none; }
   .song-header h1 { white-space:normal; overflow-wrap:anywhere; line-height:1.3; }
   .song-head-controls { flex-wrap:wrap; }
-  .reader-dock { padding-left:max(8px,env(safe-area-inset-left)); padding-right:max(8px,env(safe-area-inset-right)); }
+  .reader-dock { position:absolute; display:none; grid-template-columns:minmax(0,1fr); justify-items:center; align-items:end; padding:8px max(8px,env(safe-area-inset-right)) calc(8px + env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left)); background:none; transition:transform .52s cubic-bezier(.22,1,.36,1),opacity .38s ease; }
+  body.reader-active .reader-dock { display:grid; }
+  .reader-dock.chrome-hidden { transform:translate3d(0,calc(100% + 8px),0); opacity:0; }
+  .reader-dock.chrome-hidden > * { pointer-events:none; }
+  .reader-dock > .dock-bar,.reader-dock > .dp { grid-area:1 / 1; animation:none; transform-origin:50% 100%; }
+  .dp-speed-ic { display:flex; align-items:center; justify-content:center; width:24px; height:24px; color:var(--text-dim); opacity:1; }
+  .dp-speed-ic svg { display:block; width:24px; height:24px; fill:currentColor; }
   .dp { gap:8px; }
   .modal { max-height:calc(100dvh - env(safe-area-inset-top) - 20px); overflow-y:auto; overscroll-behavior:contain; padding-left:max(18px,env(safe-area-inset-left)); padding-right:max(18px,env(safe-area-inset-right)); }
   #login-overlay,#setup-overlay { overflow-y:auto; padding-top:calc(24px + env(safe-area-inset-top)); padding-bottom:calc(24px + env(safe-area-inset-bottom)); }
@@ -1255,9 +1262,9 @@
     </div>
     <div class="dp dp-scroll" data-panel="scroll" hidden>
       <button class="dp-play" id="scroll-toggle-btn" onclick="toggleAutoScroll()" aria-label="Iniciar/parar rolagem"><span id="scroll-icon">▶</span></button>
-      <span class="dp-speed-ic" aria-hidden="true">🐢</span>
+      <span class="dp-speed-ic" aria-hidden="true"><svg viewBox="0 0 32 24" focusable="false"><path d="M5 14C5 7 9 3 16 3s10 5 10 11H5Zm1 2h20c1.5 0 2-1 2-2v-2c0-2 4-2 4 1v2c0 3-2 4-5 4h-2l1 3h-4l-2-3h-8l-2 3H6l1-4-4-2-3-3 2-1 4 4Z"/><path d="m16 5-4 3 1 5h6l1-5-4-3Z" fill="var(--bg-elev-2)"/></svg></span>
       <input type="range" min="5" max="80" value="20" id="scroll-speed-range" oninput="setScrollSpeed(this.value)" aria-label="Velocidade da rolagem">
-      <span class="dp-speed-ic" aria-hidden="true">🐇</span>
+      <span class="dp-speed-ic" aria-hidden="true"><svg viewBox="0 0 32 24" focusable="false"><path d="M23 9c-4-2-6-6-5-8 2-1 5 3 7 6-1-4 0-7 2-7 2 1 1 6 0 8 3 0 5 2 5 4 0 2-2 3-5 3l-3 3 5 3v2h-4l-8-5h-4l-3 3H3v-2l5-2c-3-1-4-4-2-7 3-4 9-4 13 0l4-1ZM3 11a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"/></svg></span>
       <button class="dp-close" onclick="closeScrollPanel()" aria-label="Fechar">✕</button>
     </div>
   </div>
@@ -1779,6 +1786,7 @@ function goToTab(name){
 
 /* ---------------- NAVIGATION ---------------- */
 function showScreen(name){
+  document.body.classList.toggle('reader-active',name==='song');
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
   document.querySelectorAll('nav.bottom button').forEach(b=>b.classList.remove('active'));
@@ -3460,22 +3468,43 @@ document.addEventListener('visibilitychange',()=>{ if(document.hidden && scrolli
    cifra para baixo e voltam ao rolar para cima, dando mais tela à leitura. */
 let _openDockPanelKind = null;
 const DEFAULT_SCROLL_SPEED = 20;
-function openDockPanel(kind){
-  const dock = document.getElementById('reader-dock');
-  if(!dock) return;
-  const bar = document.getElementById('dock-bar');
-  if(bar) bar.hidden = true;                        // o painel SUBSTITUI a barra
-  dock.querySelectorAll('.dp').forEach(dp=>{ dp.hidden = (dp.dataset.panel !== kind); });
-  _openDockPanelKind = kind;
+let dockTransition = 0;
+function swapDockPanel(kind){
+  const dock=document.getElementById('reader-dock');
+  const panels=[...dock.querySelectorAll('.dock-bar,.dp')];
+  const next=kind ? panels.find(el=>el.dataset.panel===kind) : document.getElementById('dock-bar');
+  if(!next) return;
+  const previous=panels.find(el=>!el.hidden && el.dataset.leaving!=='true');
+  if(previous===next) return;
+  const token=++dockTransition;
+  panels.forEach(el=>{
+    el.getAnimations().forEach(animation=>animation.cancel());
+    el.hidden=el!==previous && el!==next;
+    el.inert=el!==next;
+    delete el.dataset.leaving;
+  });
+  next.hidden=false;
+  const finish=()=>{
+    if(token!==dockTransition) return;
+    panels.forEach(el=>{ el.hidden=el!==next; el.inert=el!==next; delete el.dataset.leaving; });
+    updateDockClearance();
+  };
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches || !next.animate || !isActive('song')){ finish(); return; }
+  if(previous){
+    previous.dataset.leaving='true';
+    previous.animate([{opacity:1,transform:'translateY(0) scale(1)'},{opacity:0,transform:'translateY(8px) scale(.98)'}],
+      {duration:240,easing:'cubic-bezier(.4,0,.6,1)',fill:'forwards'}).finished.catch(()=>{});
+  }
+  const entrance=next.animate([{opacity:0,transform:'translateY(12px) scale(.97)'},{opacity:1,transform:'translateY(0) scale(1)'}],
+    {duration:480,easing:'cubic-bezier(.22,1,.36,1)'});
+  entrance.finished.then(finish,()=>{});
+  if(previous?.contains(document.activeElement)) next.querySelector('button')?.focus({preventScroll:true});
+  updateDockClearance();
 }
-function closeDockPanel(){
-  const dock = document.getElementById('reader-dock');
-  if(!dock) return;
-  dock.querySelectorAll('.dp').forEach(dp=> dp.hidden = true);
-  const bar = document.getElementById('dock-bar');
-  if(bar) bar.hidden = false;                       // traz a barra de volta
-  _openDockPanelKind = null;
-}
+function openDockPanel(kind){ swapDockPanel(kind); _openDockPanelKind=kind; }
+function closeDockPanel(){ swapDockPanel(null); _openDockPanelKind=null; }
+
+
 function toggleDockPanel(kind){
   if(_openDockPanelKind === kind){
     // Fechar pelo próprio botão do dock: na Rolagem, também encerra a rolagem.
@@ -3516,7 +3545,7 @@ function setChromeHidden(hide){
   if(hide === _chromeHidden) return;
   _chromeHidden = hide;
   const dock = document.getElementById('reader-dock');
-  if(dock) dock.classList.toggle('chrome-hidden', hide);
+  if(dock){ dock.classList.toggle('chrome-hidden', hide); dock.inert=hide || document.getElementById('modal-backdrop').classList.contains('show'); }
 }
 // --- Auto-ocultar por inatividade (só durante a rolagem automática) ---
 // Com a rolagem ligada, o controle de velocidade PERMANECE na tela mesmo ao
@@ -4142,7 +4171,7 @@ function dismissModalUI(){
   const panel=document.getElementById('modal-body');
   panel.classList.remove('as-popover'); panel.style.left=''; panel.style.top='';
   _popoverAnchor=null;
-  document.querySelectorAll('.screen').forEach(screen=>screen.inert=false);
+  document.querySelectorAll('.screen, #reader-dock').forEach(screen=>screen.inert=false);
   if(modalReturnFocus?.isConnected) modalReturnFocus.focus({preventScroll:true});
   modalReturnFocus=null;
 }
@@ -4167,7 +4196,7 @@ function showModal(html, opts){
   }
   backdrop.classList.add('show');
   if(opts.anchor) positionPopover(panel, opts.anchor);
-  document.querySelectorAll('.screen').forEach(screen=>screen.inert=true);
+  document.querySelectorAll('.screen, #reader-dock').forEach(screen=>screen.inert=true);
   panel.focus({preventScroll:true});
   // Só empilha UM estado de histórico por modal. Quando um modal já está aberto
   // e estamos apenas trocando o conteúdo (ex.: modal do artista -> busca de capa
@@ -4288,6 +4317,35 @@ document.addEventListener('keydown', event=>{
 for(const [id,label] of Object.entries({'f-title':'Título da música','f-artist':'Artista','f-tom':'Tom','f-content':'Letra e cifra','lyrics-content':'Letra','slides-font':'Fonte dos slides','slides-size':'Tamanho dos slides'})){
   document.getElementById(id)?.setAttribute('aria-label',label);
 }
+// Keep overlays out of animated screen ancestors. Reserve only their measured height.
+document.body.appendChild(document.getElementById('reader-dock'));
+function updateDockClearance(){
+  const dock=document.getElementById('reader-dock');
+  if(dock.offsetHeight) document.documentElement.style.setProperty('--reader-clearance',(dock.offsetHeight+8)+'px');
+}
+let appViewportFrame=null;
+function syncAppViewport(){
+  appViewportFrame=null;
+  const viewport=window.visualViewport;
+  // Ignore magnification imposed by browser accessibility; never shrink the layout for it.
+  if(viewport && Math.abs(viewport.scale-1)>.01) return;
+  document.documentElement.style.setProperty('--app-height',Math.round(viewport?.height || window.innerHeight)+'px');
+  document.documentElement.style.setProperty('--app-top',(viewport?.offsetTop || 0)+'px');
+  updateDockClearance();
+}
+function queueAppViewport(){ if(appViewportFrame===null) appViewportFrame=requestAnimationFrame(syncAppViewport); }
+window.addEventListener('resize',queueAppViewport,{passive:true});
+window.addEventListener('pageshow',queueAppViewport);
+window.visualViewport?.addEventListener('resize',queueAppViewport,{passive:true});
+window.visualViewport?.addEventListener('scroll',queueAppViewport,{passive:true});
+if('ResizeObserver' in window) new ResizeObserver(updateDockClearance).observe(document.getElementById('reader-dock'));
+syncAppViewport();
+// Safari gesture fallback; scrolling with one finger and range dragging remain native.
+document.addEventListener('gesturestart',event=>event.preventDefault(),{passive:false});
+document.addEventListener('gesturechange',event=>event.preventDefault(),{passive:false});
+document.addEventListener('touchmove',event=>{ if(event.touches.length>1) event.preventDefault(); },{passive:false});
+
+
 /* ---------------- INIT ---------------- */
 // Garante um estado inicial consistente no histórico do navegador ("Cifras"),
 // para que history.back() sempre tenha algo coerente para restaurar assim que
