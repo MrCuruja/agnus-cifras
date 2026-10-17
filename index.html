@@ -3774,30 +3774,36 @@ function jsonp(url){
 }
 async function itunesCovers(term){
   const url = 'https://itunes.apple.com/search?media=music&entity=musicTrack&limit=40&country=BR&term=' + encodeURIComponent(term);
-  let data;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(()=>controller.abort(), 8500);
-    try {
-      const response = await fetch(url, {signal:controller.signal, mode:'cors', cache:'no-store'});
-      if(!response.ok) throw new Error('HTTP '+response.status);
-      data = await response.json();
-    } finally { clearTimeout(timer); }
-  } catch(primaryError) {
-    console.warn('Busca fetch falhou; tentando JSONP:', primaryError);
-    try { data = await jsonp(url); }
-    catch(fallbackError) { throw new Error('Busca de capas: '+primaryError.message+' / '+fallbackError.message); }
+  const response = await fetch(url, {mode:'cors',cache:'no-store',signal:AbortSignal.timeout(8000)});
+  if(!response.ok) throw new Error('iTunes HTTP '+response.status);
+  const data = await response.json();
+  return (data.results||[]).filter(r=>r.artworkUrl100||r.artworkUrl60).map(r=>({
+    url:(r.artworkUrl100||r.artworkUrl60).replace(/\\/\\d+x\\d+bb\\./,'/600x600bb.'),
+    title:r.trackName||r.collectionName||'',artist:r.artistName||''
+  }));
+}
+async function deezerCovers(term){
+  const url='https://api.deezer.com/search?q='+encodeURIComponent(term)+'&limit=40&output=jsonp';
+  const data=await jsonp(url);
+  return (data.data||[]).filter(r=>r.album && r.album.cover_medium).map(r=>({
+    url:r.album.cover_xl||r.album.cover_big||r.album.cover_medium,
+    title:r.title||r.album.title||'',artist:r.artist?.name||''
+  }));
+}
+async function searchCoverProviders(term){
+  const results=await Promise.allSettled([itunesCovers(term),deezerCovers(term)]);
+  const seen=new Set(), covers=[];
+  for(const result of results){
+    if(result.status!=='fulfilled')continue;
+    for(const r of result.value){
+      if(!r.url||seen.has(r.url))continue;
+      seen.add(r.url);covers.push(r);
+    }
   }
-  const seen = new Set(), out = [];
-  for(const r of (data.results||[])){
-    let art = r.artworkUrl100 || r.artworkUrl60;
-    if(!art) continue;
-    art = art.replace(/\/\d+x\d+bb\./, '/600x600bb.');
-    if(seen.has(art)) continue;
-    seen.add(art);
-    out.push({url:art, title:r.trackName||r.collectionName||'', artist:r.artistName||''});
-  }
-  return out;
+  if(covers.length)return covers;
+  const errors=results.filter(r=>r.status==='rejected').map(r=>r.reason?.message||String(r.reason));
+  if(errors.length===results.length)throw new Error(errors.join(' | '));
+  return [];
 }
 
 let coverTarget = 'song'; // 'song' (formulário de cifra) ou 'artist' (modal de artista)
@@ -3836,7 +3842,7 @@ async function runCoverSearch(){
   if(!q){ grid.innerHTML = '<div class="cover-status">Digite algo para buscar.</div>'; return; }
   grid.innerHTML = '<div class="cover-status"><div class="cover-spinner"></div>Buscando capas...</div>';
   try{
-    const res = await itunesCovers(q);
+    const res = await searchCoverProviders(q);
     if(requestId !== _coverSearchRequest || !grid.isConnected) return;
     if(!res.length){
       grid.innerHTML = '<div class="cover-status">Nenhuma capa encontrada. Tente outro termo, ou use "Colar link da imagem".</div>';
