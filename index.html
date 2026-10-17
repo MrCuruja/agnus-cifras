@@ -999,6 +999,10 @@
   }
   @media (prefers-reduced-motion:reduce) { * { scroll-behavior:auto !important; } }
 
+  .folder-edit-row{display:flex;align-items:center;gap:8px;padding:12px 0;border-bottom:1px solid var(--line);overflow-wrap:anywhere}
+  .folder-edit-actions{display:flex;gap:4px;flex-shrink:0}
+  .folder-edit-actions .btn{min-width:40px;min-height:44px;padding:6px;font-size:20px}
+  .folder-edit-actions .btn:disabled{opacity:.25}
 </style>
 <script>
 /* Manifesto PWA gerado em tempo de execução (app é um único arquivo HTML).
@@ -1187,6 +1191,7 @@
   <div class="folder-header">
     <button class="back-btn" aria-label="Voltar" onclick="history.back()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
     <h2 id="folder-title">Pasta</h2>
+    <button class="btn ghost" onclick="openFolderEditor()">Editar</button>
     <div style="flex:1"></div>
     <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
   </div>
@@ -1458,7 +1463,7 @@ Santo, Santo Ele é"></textarea>
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import {
   getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
-  onSnapshot, enableIndexedDbPersistence
+  onSnapshot, enableIndexedDbPersistence, writeBatch, arrayUnion, arrayRemove
 } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 import {
   getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail
@@ -1962,7 +1967,7 @@ function openFolder(id, opts){
   const f = folders.find(x=>x.id===id);
   if(!f){ if(!opts.stay) showScreen('listas'); return; }
   document.getElementById('folder-title').textContent = f.name;
-  const items = songs.filter(s=>(s.folders||[]).includes(id)).sort((a,b)=>(a.title||'').localeCompare(b.title||'','pt-BR'));
+  const items = getOrderedFolderSongs(id);
   const list = document.getElementById('folder-list');
   if(items.length===0){
     list.innerHTML = `<div class="empty-state"><div style="font-size:40px;">🎼</div><div>Nenhuma cifra nesta lista ainda.</div></div>`;
@@ -1977,6 +1982,106 @@ function openFolder(id, opts){
   if(!opts.stay){
     showScreen('folder');
     if(!opts.skipHistory) pushNavState({screen:'folder', folderId:id});
+  }
+}
+
+let folderDraft = null;
+function getOrderedFolderSongs(id){
+  const f = folders.find(f=>f.id===id);
+  const order = new Map((Array.isArray(f?.songOrder) ? f.songOrder : []).map((sid,i)=>[sid,i]));
+  return songs.filter(s=>(s.folders||[]).includes(id)).sort((a,b)=>
+    (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity) ||
+    (a.title||'').localeCompare(b.title||'','pt-BR'));
+}
+function openFolderEditor(id = currentFolderId){
+  const f = folders.find(f=>f.id===id);
+  if(!f) return;
+  const ids = getOrderedFolderSongs(id).map(s=>s.id);
+  folderDraft = {id, ids, initial:new Set(ids), saving:false};
+  showModal(`<h3>Editar lista: ${escapeHtml(f.name)}</h3>
+    <p style="color:var(--text-dim);font-size:14px">Use ↑ e ↓ para mudar a ordem. Remover daqui mantém a música no acervo.</p>
+    <div id="folder-edit-selected"></div>
+    <h3>Adicionar músicas</h3>
+    <input id="folder-edit-search" type="search" placeholder="Buscar título ou artista" aria-label="Buscar músicas para adicionar" oninput="renderFolderCandidates()">
+    <div id="folder-edit-candidates" style="max-height:28vh;overflow-y:auto"></div>
+    <p id="folder-edit-status" role="status" aria-live="polite"></p>
+    <div class="row-btns" style="position:sticky;bottom:0;background:var(--bg-card, #19191f);padding:12px 0">
+      <button class="btn ghost" onclick="closeModal()">Cancelar</button>
+      <button id="folder-edit-save" class="btn primary" onclick="saveFolderEditor()">Salvar lista</button>
+    </div>`);
+  renderFolderSelection();
+  renderFolderCandidates();
+}
+function renderFolderSelection(){
+  const el = document.getElementById('folder-edit-selected');
+  if(!el || !folderDraft) return;
+  el.innerHTML = folderDraft.ids.map((id,i)=>{
+    const song = songs.find(s=>s.id===id);
+    return `<div class="folder-edit-row">
+      <div style="min-width:0;flex:1"><strong>${i+1}. ${escapeHtml(song?.title||'Música indisponível')}</strong><div style="color:var(--text-dim);font-size:13px">${escapeHtml(song?.artist||'')}</div></div>
+      <div class="folder-edit-actions">
+        <button class="btn ghost" aria-label="Subir música ${i+1}" ${i===0?'disabled':''} onclick="moveFolderSong(${i},-1)">↑</button>
+        <button class="btn ghost" aria-label="Descer música ${i+1}" ${i===folderDraft.ids.length-1?'disabled':''} onclick="moveFolderSong(${i},1)">↓</button>
+        <button class="btn ghost" aria-label="Remover música ${i+1} da lista" onclick="removeFolderSong(${i})" style="color:#ff6b6b">×</button>
+      </div></div>`;
+  }).join('') || '<p style="color:var(--text-dim)">Lista vazia. Adicione músicas abaixo.</p>';
+}
+function renderFolderCandidates(){
+  const el = document.getElementById('folder-edit-candidates');
+  if(!el || !folderDraft) return;
+  const normalize = value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  const query = normalize(document.getElementById('folder-edit-search').value.trim());
+  const selected = new Set(folderDraft.ids);
+  const candidates = songs.filter(s=>!selected.has(s.id) && normalize(s.title+' '+(s.artist||'')).includes(query))
+    .sort((a,b)=>(a.title||'').localeCompare(b.title||'','pt-BR'));
+  el.innerHTML = candidates.map(s=>`<div class="folder-edit-row">
+    <div style="min-width:0;flex:1"><strong>${escapeHtml(s.title)}</strong><div style="color:var(--text-dim);font-size:13px">${escapeHtml(s.artist||'')}</div></div>
+    <button class="btn ghost" data-song-id="${escapeHtml(s.id)}" onclick="addFolderSong(this.dataset.songId)">Adicionar</button></div>`).join('') || '<p style="color:var(--text-dim)">Nenhuma música disponível para esta busca.</p>';
+}
+function moveFolderSong(index,delta){
+  if(!folderDraft || folderDraft.saving) return;
+  const target = index+delta;
+  if(index<0 || index>=folderDraft.ids.length || target<0 || target>=folderDraft.ids.length) return;
+  [folderDraft.ids[index],folderDraft.ids[target]] = [folderDraft.ids[target],folderDraft.ids[index]];
+  renderFolderSelection();
+}
+function removeFolderSong(index){
+  if(!folderDraft || folderDraft.saving) return;
+  folderDraft.ids.splice(index,1);
+  renderFolderSelection(); renderFolderCandidates();
+}
+function addFolderSong(id){
+  if(!folderDraft || folderDraft.saving || folderDraft.ids.includes(id) || !songs.some(s=>s.id===id)) return;
+  folderDraft.ids.push(id);
+  renderFolderSelection(); renderFolderCandidates();
+}
+async function saveFolderEditor(){
+  if(!folderDraft || folderDraft.saving) return;
+  const draft = folderDraft;
+  const status = document.getElementById('folder-edit-status');
+  if(!db || !navigator.onLine){ status.textContent='Conecte-se à internet para salvar. Suas alterações continuam abertas.'; return; }
+  const ids = draft.ids.filter(id=>songs.some(s=>s.id===id));
+  const selected = new Set(ids);
+  const additions = ids.filter(id=>!draft.initial.has(id));
+  const removals = [...draft.initial].filter(id=>!selected.has(id) && songs.some(s=>s.id===id));
+  if(additions.length+removals.length>499){ status.textContent='Salve em etapas de até 499 inclusões ou remoções.'; return; }
+  draft.saving=true;
+  document.getElementById('folder-edit-save').disabled=true;
+  status.textContent='Salvando…';
+  try{
+    const batch = writeBatch(db);
+    additions.forEach(id=>batch.update(doc(db,'songs',id),{folders:arrayUnion(draft.id)}));
+    removals.forEach(id=>batch.update(doc(db,'songs',id),{folders:arrayRemove(draft.id)}));
+    batch.update(doc(db,'folders',draft.id),{songOrder:ids});
+    await batch.commit();
+    if(folderDraft===draft && document.getElementById('folder-edit-save')) closeModal();
+    toast('Lista e ordem salvas');
+  }catch(e){
+    console.error(e);
+    status.textContent='Não foi possível salvar. Suas alterações foram mantidas; tente novamente.';
+  }finally{
+    draft.saving=false;
+    if(folderDraft===draft && document.getElementById('folder-edit-save')) document.getElementById('folder-edit-save').disabled=false;
   }
 }
 
@@ -2001,6 +2106,7 @@ async function confirmNewFolder(){
 function openFolderMenu(id){
   showModal(`
     <div class="action-sheet">
+      <button onclick="openFolderEditor('${id}')">Editar músicas e ordem</button>
       <button onclick="renameFolder('${id}')">Renomear lista</button>
       <button class="danger" onclick="deleteFolder('${id}')">Excluir lista</button>
     </div>
@@ -4300,6 +4406,7 @@ function toast(msg){
 /* ---------------- EXPOSE TO GLOBAL SCOPE (needed for inline onclick=""") ---------------- */
 Object.assign(window, {
   queueSearch, showScreen, goToTab, renderCifras, openFolder, openNewFolder, confirmNewFolder, openFolderMenu,
+  openFolderEditor, renderFolderCandidates, moveFolderSong, removeFolderSong, addFolderSong, saveFolderEditor,
   renameFolder, confirmRenameFolder, deleteFolder, openSong, backFromSong, transposeSong, setSongMode,
   adjustFont, openSongMenu, openSongMenuFor, manageSongFolders, confirmSongFolders,
   toggleDockPanel, closeDockPanel, closeScrollPanel, resetTranspose, openSongOptions,
