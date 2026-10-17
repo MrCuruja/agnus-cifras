@@ -531,9 +531,7 @@
 
   /* Grade de resultados de busca de capa */
   .cover-search-input{display:flex; gap:8px; margin-bottom:12px;}
-  .cover-search-input input{flex:1;min-width:0;}
-  .cover-search-input .btn{min-width:0;}
-  @media(max-width:370px){.cover-search-input{flex-wrap:wrap}.cover-search-input input{flex-basis:100%;}.cover-search-input .btn{width:100%;}}
+  .cover-search-input input{flex:1;}
   .cover-grid{
     display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-height:46vh;
     overflow-y:auto; margin:4px 0 6px; padding:2px;
@@ -551,7 +549,7 @@
     color:#fff; background:linear-gradient(transparent, rgba(0,0,0,.8)); line-height:1.2;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .cover-status{grid-column:1/-1;font-size:13px;line-height:1.5;color:var(--text-dim);text-align:center;padding:22px 12px;overflow-wrap:anywhere;}
+  .cover-status{font-size:13px; color:var(--text-dim); text-align:center; padding:22px 0;}
   .cover-spinner{
     width:26px; height:26px; margin:0 auto 10px; border-radius:50%;
     border:3px solid var(--line-strong); border-top-color:var(--accent);
@@ -1767,12 +1765,7 @@ window.addEventListener('popstate', function(e){
   const modal = document.getElementById('modal-backdrop');
   // Se havia um modal/pop-up aberto, o botão voltar primeiro só fecha o modal
   // (igual ao padrão de apps mobile) e não navega a tela de trás.
-  if(modal.classList.contains('show')){
-    dismissModalUI();
-    if(e.state && e.state.modal) return;
-    if(e.state && !isSameActiveTarget(e.state)) restoreNavState(e.state);
-    return;
-  }
+  if(modal.classList.contains('show')){ dismissModalUI(); return; }
   restoreNavState(e.state);
 });
 // Recalcula a quebra de linha da cifra quando a largura disponível muda (girar
@@ -3773,37 +3766,18 @@ function jsonp(url){
   });
 }
 async function itunesCovers(term){
-  const url = 'https://itunes.apple.com/search?media=music&entity=musicTrack&limit=40&country=BR&term=' + encodeURIComponent(term);
-  const response = await fetch(url, {mode:'cors',cache:'no-store',signal:AbortSignal.timeout(8000)});
-  if(!response.ok) throw new Error('iTunes HTTP '+response.status);
-  const data = await response.json();
-  return (data.results||[]).filter(r=>r.artworkUrl100||r.artworkUrl60).map(r=>({
-    url:(r.artworkUrl100||r.artworkUrl60).replace(/\\/\\d+x\\d+bb\\./,'/600x600bb.'),
-    title:r.trackName||r.collectionName||'',artist:r.artistName||''
-  }));
-}
-async function deezerCovers(term){
-  const url='https://api.deezer.com/search?q='+encodeURIComponent(term)+'&limit=40&output=jsonp';
-  const data=await jsonp(url);
-  return (data.data||[]).filter(r=>r.album && r.album.cover_medium).map(r=>({
-    url:r.album.cover_xl||r.album.cover_big||r.album.cover_medium,
-    title:r.title||r.album.title||'',artist:r.artist?.name||''
-  }));
-}
-async function searchCoverProviders(term){
-  const results=await Promise.allSettled([itunesCovers(term),deezerCovers(term)]);
-  const seen=new Set(), covers=[];
-  for(const result of results){
-    if(result.status!=='fulfilled')continue;
-    for(const r of result.value){
-      if(!r.url||seen.has(r.url))continue;
-      seen.add(r.url);covers.push(r);
-    }
-  }
-  if(covers.length)return covers;
-  const errors=results.filter(r=>r.status==='rejected').map(r=>r.reason?.message||String(r.reason));
-  if(errors.length===results.length)throw new Error(errors.join(' | '));
-  return [];
+  const base = 'https://itunes.apple.com/search?media=music&entity=musicTrack&limit=24&country=BR&term=';
+  const data = await jsonp(base + encodeURIComponent(term));
+  const seen = new Set(); const out = [];
+  (data.results||[]).forEach(r=>{
+    let art = r.artworkUrl100 || r.artworkUrl60;
+    if(!art) return;
+    // Aumenta a resolução da capa (100x100 -> 600x600).
+    art = art.replace(/\/\d+x\d+bb\./, '/600x600bb.');
+    if(seen.has(art)) return; seen.add(art);
+    out.push({ url: art, title: r.trackName || r.collectionName || '', artist: r.artistName || '' });
+  });
+  return out;
 }
 
 let coverTarget = 'song'; // 'song' (formulário de cifra) ou 'artist' (modal de artista)
@@ -3832,9 +3806,7 @@ function openCoverSearch(target){
   else { grid.innerHTML = '<div class="cover-status">Digite o artista e a música e toque em Buscar.</div>'; }
   setTimeout(()=>{ const el=document.getElementById('cover-q'); if(el) el.focus(); }, 60);
 }
-let _coverSearchRequest = 0;
 async function runCoverSearch(){
-  const requestId = ++_coverSearchRequest;
   const qEl = document.getElementById('cover-q');
   const grid = document.getElementById('cover-grid');
   if(!grid) return;
@@ -3842,8 +3814,7 @@ async function runCoverSearch(){
   if(!q){ grid.innerHTML = '<div class="cover-status">Digite algo para buscar.</div>'; return; }
   grid.innerHTML = '<div class="cover-status"><div class="cover-spinner"></div>Buscando capas...</div>';
   try{
-    const res = await searchCoverProviders(q);
-    if(requestId !== _coverSearchRequest || !grid.isConnected) return;
+    const res = await itunesCovers(q);
     if(!res.length){
       grid.innerHTML = '<div class="cover-status">Nenhuma capa encontrada. Tente outro termo, ou use "Colar link da imagem".</div>';
       return;
@@ -3854,9 +3825,8 @@ async function runCoverSearch(){
         <div class="cap">${escapeHtml(r.title || r.artist)}</div>
       </div>`).join('');
   }catch(e){
-    if(requestId !== _coverSearchRequest || !grid.isConnected) return;
     console.error(e);
-    grid.innerHTML = '<div class="cover-status">Não foi possível consultar as capas. <button type="button" class="btn-sm accent" onclick="runCoverSearch()">Tentar novamente</button></div>';
+    grid.innerHTML = '<div class="cover-status">Não foi possível buscar agora (verifique a conexão). Você pode colar um link de imagem em vez disso.</div>';
   }
 }
 function chooseCover(encUrl){
