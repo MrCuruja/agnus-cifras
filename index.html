@@ -1840,6 +1840,13 @@ function restoreNavState(state){
   showScreen('cifras');
 }
 window.addEventListener('popstate', function(e){
+  // Ao alcançar a sentinela, restaura a aba atual e mantém o usuário no app.
+  // Não cria uma nova tela, nem permite retornar a uma aba anterior.
+  if(e.state?.agnusRootGuard){
+    const current = ['cifras','listas','artistas'].find(isActive) || 'cifras';
+    history.pushState({screen:current,root:true}, '', '#'+current);
+    return;
+  }
   // Se a apresentação (telão) está aberta, o botão voltar primeiro fecha ela
   // e não navega a tela de trás.
   if(presentActive){ closePresentationInternal(); return; }
@@ -1874,8 +1881,9 @@ if('ResizeObserver' in window) new ResizeObserver(scheduleReaderLayout).observe(
 // o botão voltar também funcione entre elas.
 function goToTab(name){
   if(isActive(name)) return;
+  // Abas principais são destinos de raiz, não entradas adicionais no histórico.
   showScreen(name);
-  pushNavState({screen:name});
+  replaceNavState({screen:name, root:true});
 }
 
 /* ---------------- NAVIGATION ---------------- */
@@ -4746,7 +4754,12 @@ document.addEventListener('touchmove',event=>{ if(event.touches.length>1) event.
 // Garante um estado inicial consistente no histórico do navegador ("Cifras"),
 // para que history.back() sempre tenha algo coerente para restaurar assim que
 // o usuário entrar em qualquer outra tela do app.
-if(!history.state) history.replaceState({screen:'cifras'}, '');
+// Duas entradas de raiz impedem que Voltar saia do PWA ao estar nas abas.
+// A entrada sentinela nunca representa uma página interna.
+if(!history.state || !history.state.agnusRootGuard){
+  history.replaceState({screen:'cifras', agnusRootGuard:true, root:true}, '', '#cifras');
+  history.pushState({screen:'cifras', root:true}, '', '#cifras');
+}
 if(!db){
   // Firebase não configurado: mostra listas vazias por trás do aviso de setup
   renderCifras(); renderListas();
