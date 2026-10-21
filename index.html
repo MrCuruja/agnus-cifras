@@ -1003,6 +1003,43 @@
   .folder-edit-actions{display:flex;gap:4px;flex-shrink:0}
   .folder-edit-actions .btn{min-width:40px;min-height:44px;padding:6px;font-size:20px}
   .folder-edit-actions .btn:disabled{opacity:.25}
+
+  /* Inline list editor: controls slide in while the same list stays mounted. */
+  #screen-folder{position:relative;overflow:hidden}
+  #folder-list{display:block;min-height:0;padding-bottom:24px;transition:padding-bottom .26s ease}
+  .folder-song-row{display:grid;grid-template-columns:0px minmax(0,1fr) 0px;gap:0;overflow:hidden;transition:grid-template-columns .26s ease,padding .26s ease,background .2s ease}
+  .folder-song-main{display:flex;align-items:center;gap:13px;min-width:0;width:100%;outline-offset:-2px}
+  .folder-control{overflow:hidden;opacity:0;visibility:hidden;transition:opacity .2s ease,transform .26s ease,visibility .26s;display:flex;align-items:center;justify-content:center}
+  .folder-remove-wrap{transform:translateX(-44px)}
+  .folder-grip-wrap{transform:translateX(44px)}
+  .folder-remove,.folder-grip{width:44px;height:48px;border:0;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--text);cursor:pointer}
+  .folder-remove span{background:#ff9b9f;color:#63272b;border-radius:50%;width:24px;height:24px;font-size:23px;line-height:21px;text-align:center}
+  .folder-grip{touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab}
+  .folder-editing .folder-song-row{grid-template-columns:40px minmax(0,1fr) 40px;padding-left:2px;padding-right:2px;cursor:default}
+  .folder-editing .folder-control{opacity:1;visibility:visible;transform:translateX(0)}
+  .folder-editing .folder-song-main .thumb{display:none}
+  .folder-editing .folder-song-main{padding:5px 3px;pointer-events:none}
+  .folder-editing .folder-song-main .tom{background:transparent;padding:0 3px;min-width:26px}
+  .folder-editing .folder-song-row:active{transform:none}
+  .folder-song-row.folder-dragging{border-color:var(--accent);background:var(--bg-elev-2);box-shadow:0 8px 24px #0005;z-index:2;position:relative}
+  .folder-dragging .folder-grip{cursor:grabbing;color:var(--accent)}
+  .folder-edit-help{font-size:12px;color:var(--text-dim);padding:4px 8px;line-height:1.5}
+  .folder-add-toggle{width:100%;margin:8px 0}
+  .folder-edit-footer{position:absolute;bottom:0;left:0;right:0;z-index:10;padding:8px max(16px,env(safe-area-inset-right)) max(14px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:var(--bg);border-top:1px solid var(--line);transform:translateY(110%);opacity:0;visibility:hidden;transition:transform .28s ease,opacity .22s ease,visibility .28s}
+  .folder-editing .folder-edit-footer{transform:translateY(0);opacity:1;visibility:visible}
+  .folder-edit-buttons{display:flex;gap:12px}
+  .folder-edit-buttons .btn{flex:1;min-height:50px;border-radius:16px}
+  #folder-edit-save{background:#fff;color:#17171b}
+  #folder-edit-status{font-size:13px;color:var(--text-dim);margin:0 0 8px;line-height:1.4}
+  #folder-edit-status:empty{display:none}
+  .folder-editing #folder-list{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
+  #folder-add-panel{flex-shrink:0;max-height:42%;overflow-y:auto;background:var(--bg-elev);padding:12px 16px calc(100px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+  #folder-add-panel[hidden]{display:none}
+  #folder-edit-search{width:100%}
+  #folder-edit-candidates .folder-edit-row{display:flex;gap:10px;align-items:center;padding:10px 0}
+  .folder-saving .folder-control,.folder-saving .folder-add-toggle,#screen-folder.folder-saving #folder-add-panel{pointer-events:none;opacity:.4}
+  @media(prefers-reduced-motion:reduce){#screen-folder *{transition:none!important;animation:none!important}}
+
 </style>
 <script>
 /* Manifesto PWA gerado em tempo de execução (app é um único arquivo HTML).
@@ -1189,13 +1226,24 @@
 <!-- ===================== FOLDER VIEW SCREEN ===================== -->
 <div class="screen" id="screen-folder">
   <div class="folder-header">
-    <button class="back-btn" aria-label="Voltar" onclick="history.back()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
+    <button class="back-btn" aria-label="Voltar" onclick="backFromFolder()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
     <h2 id="folder-title">Pasta</h2>
-    <button class="btn ghost" onclick="openFolderEditor()">Editar</button>
+    <button class="btn ghost" id="folder-edit-toggle" onclick="openFolderEditor()">Editar</button>
     <div style="flex:1"></div>
     <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
   </div>
   <div class="list" id="folder-list" style="padding-top:12px;"></div>
+  <section id="folder-add-panel" hidden>
+    <input id="folder-edit-search" type="search" placeholder="Buscar título ou artista" aria-label="Buscar músicas para adicionar" oninput="renderFolderCandidates()">
+    <div id="folder-edit-candidates"></div>
+  </section>
+  <div class="folder-edit-footer" id="folder-edit-footer" inert aria-hidden="true">
+    <p id="folder-edit-status" role="status" aria-live="polite"></p>
+    <div class="folder-edit-buttons">
+      <button class="btn ghost" id="folder-edit-cancel" onclick="cancelFolderEditor()">Cancelar</button>
+      <button class="btn primary" id="folder-edit-save" onclick="saveFolderEditor()">Salvar lista</button>
+    </div>
+  </div>
 </div>
 
 <!-- ===================== SONG VIEW SCREEN ===================== -->
@@ -1806,6 +1854,7 @@ function goToTab(name){
 
 /* ---------------- NAVIGATION ---------------- */
 function showScreen(name){
+  if(name!=='folder' && folderDraft) cancelFolderEditor();
   document.body.classList.toggle('reader-active',name==='song');
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
@@ -1967,18 +2016,9 @@ function openFolder(id, opts){
   const f = folders.find(x=>x.id===id);
   if(!f){ if(!opts.stay) showScreen('listas'); return; }
   document.getElementById('folder-title').textContent = f.name;
-  const items = getOrderedFolderSongs(id);
-  const list = document.getElementById('folder-list');
-  if(items.length===0){
-    list.innerHTML = `<div class="empty-state"><div style="font-size:40px;">🎼</div><div>Nenhuma cifra nesta lista ainda.</div></div>`;
-  } else {
-    list.innerHTML = items.map(s=>`
-      <div class="row" role="button" tabindex="0" onclick="openSong('${s.id}')">
-        ${coverThumb(getSongCover(s))}
-        <div class="info"><div class="name">${escapeHtml(s.title)}</div><div class="sub">${escapeHtml(s.artist||'')}</div></div>
-        <div class="tom">${escapeHtml(getDisplayTom(s.tom, s.transpose))}</div>
-      </div>`).join('');
-  }
+  if(folderDraft && folderDraft.id!==id) cancelFolderEditor();
+  // Snapshot updates must not replace an unsaved order or an active drag.
+  if(!folderDraft) renderFolderRows(getOrderedFolderSongs(id));
   if(!opts.stay){
     showScreen('folder');
     if(!opts.skipHistory) pushNavState({screen:'folder', folderId:id});
@@ -1993,39 +2033,143 @@ function getOrderedFolderSongs(id){
     (order.get(a.id) ?? Infinity) - (order.get(b.id) ?? Infinity) ||
     (a.title||'').localeCompare(b.title||'','pt-BR'));
 }
+const FOLDER_GRIP = '<svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor" aria-hidden="true"><circle cx="8" cy="5" r="1.5"/><circle cx="16" cy="5" r="1.5"/><circle cx="8" cy="10" r="1.5"/><circle cx="16" cy="10" r="1.5"/><circle cx="8" cy="15" r="1.5"/><circle cx="16" cy="15" r="1.5"/><circle cx="8" cy="20" r="1.5"/><circle cx="16" cy="20" r="1.5"/></svg>';
+let folderDrag = null;
+function renderFolderRows(items){
+  const editing = !!folderDraft;
+  const list = document.getElementById('folder-list');
+  list.innerHTML = items.map(s=>`<div class="row folder-song-row" data-song-id="${escapeHtml(s.id)}">
+    <div class="folder-control folder-remove-wrap" aria-hidden="${!editing}" ${editing?'':'inert'}>
+      <button class="folder-remove" aria-label="Remover ${escapeHtml(s.title)} da lista" onclick="removeFolderSongById(this.closest('[data-song-id]').dataset.songId)"><span aria-hidden="true">−</span></button>
+    </div>
+    <div class="folder-song-main" role="button" tabindex="${editing?-1:0}" ${editing?'inert':''} onclick="openSong(this.closest('[data-song-id]').dataset.songId)">
+      ${coverThumb(getSongCover(s))}
+      <div class="info"><div class="name">${escapeHtml(s.title)}</div><div class="sub">${escapeHtml(s.artist||'')}</div></div>
+      <div class="tom">${escapeHtml(getDisplayTom(s.tom,s.transpose))}</div>
+    </div>
+    <div class="folder-control folder-grip-wrap" aria-hidden="${!editing}" ${editing?'':'inert'}>
+      <button class="folder-grip" aria-label="Reordenar ${escapeHtml(s.title)}" aria-describedby="folder-order-help" onpointerdown="startFolderDrag(event)" onkeydown="folderGripKey(event)">${FOLDER_GRIP}</button>
+    </div>
+  </div>`).join('') || `<div class="empty-state"><div style="font-size:40px">🎼</div><div>${editing?'Lista vazia. Adicione músicas abaixo.':'Nenhuma cifra nesta lista ainda.'}</div></div>`;
+  if(editing){
+    list.insertAdjacentHTML('beforeend',`<p id="folder-order-help" class="folder-edit-help">Arraste pela alça à direita para ordenar. No teclado, use ↑ e ↓.</p><button class="btn ghost folder-add-toggle" onclick="toggleFolderAdd()">+ Adicionar músicas</button>`);
+  }
+}
 function openFolderEditor(id = currentFolderId){
+  if(folderDraft) return;
   const f = folders.find(f=>f.id===id);
   if(!f) return;
+  if(document.getElementById('modal-backdrop').classList.contains('show')) closeModal();
+  if(!isActive('folder') || currentFolderId!==id) openFolder(id);
   const ids = getOrderedFolderSongs(id).map(s=>s.id);
   folderDraft = {id, ids, initial:new Set(ids), saving:false};
-  showModal(`<h3>Editar lista: ${escapeHtml(f.name)}</h3>
-    <p style="color:var(--text-dim);font-size:14px">Use ↑ e ↓ para mudar a ordem. Remover daqui mantém a música no acervo.</p>
-    <div id="folder-edit-selected"></div>
-    <h3>Adicionar músicas</h3>
-    <input id="folder-edit-search" type="search" placeholder="Buscar título ou artista" aria-label="Buscar músicas para adicionar" oninput="renderFolderCandidates()">
-    <div id="folder-edit-candidates" style="max-height:28vh;overflow-y:auto"></div>
-    <p id="folder-edit-status" role="status" aria-live="polite"></p>
-    <div class="row-btns" style="position:sticky;bottom:0;background:var(--bg-card, #19191f);padding:12px 0">
-      <button class="btn ghost" onclick="closeModal()">Cancelar</button>
-      <button id="folder-edit-save" class="btn primary" onclick="saveFolderEditor()">Salvar lista</button>
-    </div>`);
+  document.getElementById('folder-edit-toggle').hidden=true;
+  document.getElementById('folder-edit-status').textContent='';
+  const footer = document.getElementById('folder-edit-footer');
+  footer.inert=false; footer.setAttribute('aria-hidden','false');
   renderFolderSelection();
-  renderFolderCandidates();
+  // Establish the collapsed layout first so both sides animate in place.
+  void document.getElementById('folder-list').offsetWidth;
+  document.getElementById('screen-folder').classList.add('folder-editing');
 }
 function renderFolderSelection(){
-  const el = document.getElementById('folder-edit-selected');
-  if(!el || !folderDraft) return;
-  el.innerHTML = folderDraft.ids.map((id,i)=>{
-    const song = songs.find(s=>s.id===id);
-    return `<div class="folder-edit-row">
-      <div style="min-width:0;flex:1"><strong>${i+1}. ${escapeHtml(song?.title||'Música indisponível')}</strong><div style="color:var(--text-dim);font-size:13px">${escapeHtml(song?.artist||'')}</div></div>
-      <div class="folder-edit-actions">
-        <button class="btn ghost" aria-label="Subir música ${i+1}" ${i===0?'disabled':''} onclick="moveFolderSong(${i},-1)">↑</button>
-        <button class="btn ghost" aria-label="Descer música ${i+1}" ${i===folderDraft.ids.length-1?'disabled':''} onclick="moveFolderSong(${i},1)">↓</button>
-        <button class="btn ghost" aria-label="Remover música ${i+1} da lista" onclick="removeFolderSong(${i})" style="color:#ff6b6b">×</button>
-      </div></div>`;
-  }).join('') || '<p style="color:var(--text-dim)">Lista vazia. Adicione músicas abaixo.</p>';
+  if(!folderDraft) return;
+  const byId = new Map(songs.map(s=>[s.id,s]));
+  renderFolderRows(folderDraft.ids.map(id=>byId.get(id)).filter(Boolean));
 }
+function cancelFolderEditor(){
+  if(!folderDraft) return;
+  finishFolderDrag(false);
+  folderDraft=null;
+  const screen = document.getElementById('screen-folder');
+  screen.classList.remove('folder-editing');
+  document.getElementById('folder-edit-toggle').hidden=false;
+  if(isActive('folder')) document.getElementById('folder-edit-toggle').focus({preventScroll:true});
+  document.getElementById('folder-add-panel').hidden=true;
+  const footer = document.getElementById('folder-edit-footer');
+  footer.inert=true; footer.setAttribute('aria-hidden','true');
+  document.getElementById('folder-edit-cancel').disabled=false;
+  document.getElementById('folder-edit-save').disabled=false;
+  // Keep the old rows through the exit animation; render fresh data afterward.
+  screen.querySelectorAll('.folder-control').forEach(el=>{el.inert=true;el.setAttribute('aria-hidden','true');});
+  screen.querySelectorAll('.folder-song-main').forEach(el=>{el.inert=false;el.tabIndex=0;});
+  setTimeout(()=>{if(!folderDraft && currentFolderId) openFolder(currentFolderId,{stay:true});},280);
+}
+function backFromFolder(){if(folderDraft && !folderDraft.saving) cancelFolderEditor();else if(!folderDraft) history.back();}
+function toggleFolderAdd(){
+  if(!folderDraft || folderDraft.saving) return;
+  const panel = document.getElementById('folder-add-panel');
+  panel.hidden=!panel.hidden;
+  if(!panel.hidden){renderFolderCandidates();document.getElementById('folder-edit-search').focus();}
+}
+function removeFolderSongById(id){
+  if(!folderDraft || folderDraft.saving) return;
+  const i = folderDraft.ids.indexOf(id);
+  if(i>=0) removeFolderSong(i);
+}
+function folderGripKey(event){
+  if(!folderDraft || folderDraft.saving || !['ArrowUp','ArrowDown'].includes(event.key)) return;
+  event.preventDefault();
+  const id = event.currentTarget.closest('[data-song-id]').dataset.songId;
+  moveFolderSong(folderDraft.ids.indexOf(id),event.key==='ArrowUp'?-1:1);
+  [...document.querySelectorAll('#folder-list .folder-song-row')].find(el=>el.dataset.songId===id)?.querySelector('.folder-grip').focus();
+}
+function startFolderDrag(event){
+  if(!folderDraft || folderDraft.saving || folderDrag || event.isPrimary===false || (event.button!==undefined && event.button!==0)) return;
+  event.preventDefault();
+  const handle=event.currentTarget, row=handle.closest('[data-song-id]');
+  const capture=document.getElementById('folder-list');
+  folderDrag={handle,row,capture,pointerId:event.pointerId,y:event.clientY,initial:folderDraft.ids.slice(),frame:null};
+  capture.setPointerCapture(event.pointerId);
+  row.classList.add('folder-dragging');
+  capture.addEventListener('pointermove',trackFolderDrag);
+  capture.addEventListener('pointerup',endFolderDrag);
+  capture.addEventListener('pointercancel',cancelFolderDrag);
+  capture.addEventListener('lostpointercapture',cancelFolderDrag);
+  folderDrag.frame=requestAnimationFrame(tickFolderDrag);
+}
+function trackFolderDrag(event){
+  if(!folderDrag || event.pointerId!==folderDrag.pointerId) return;
+  folderDrag.y=event.clientY;
+}
+function tickFolderDrag(){
+  const drag=folderDrag;
+  if(!drag || !folderDraft) return;
+  const list=document.getElementById('folder-list'), bounds=list.getBoundingClientRect();
+  const edge=60, bottom=Math.min(bounds.bottom,document.getElementById('folder-edit-footer').getBoundingClientRect().top);
+  if(drag.y<bounds.top+edge) list.scrollTop-=Math.min(16,Math.max(0,(bounds.top+edge-drag.y)/4));
+  else if(drag.y>bottom-edge) list.scrollTop+=Math.min(16,Math.max(0,(drag.y-bottom+edge)/4));
+  const rows=[...list.querySelectorAll('.folder-song-row')];
+  const others=rows.filter(row=>row!==drag.row);
+  const before=others.find(row=>{const r=row.getBoundingClientRect();return drag.y<r.top+r.height/2;});
+  const target=before?rows.indexOf(before):rows.length;
+  const current=rows.indexOf(drag.row);
+  if(target!==current && target!==current+1){
+    const old=new Map(rows.map(row=>[row,row.getBoundingClientRect().top]));
+    list.insertBefore(drag.row,before || list.querySelector('.folder-edit-help'));
+    folderDraft.ids=[...list.querySelectorAll('.folder-song-row')].map(row=>row.dataset.songId);
+    if(!matchMedia('(prefers-reduced-motion: reduce)').matches){
+      others.forEach(row=>{const dy=old.get(row)-row.getBoundingClientRect().top;if(dy)row.animate([{transform:`translateY(${dy}px)`},{transform:'translateY(0)'}],{duration:160,easing:'ease-out'});});
+    }
+  }
+  drag.frame=requestAnimationFrame(tickFolderDrag);
+}
+function endFolderDrag(event){if(folderDrag && event.pointerId===folderDrag.pointerId) finishFolderDrag(true);}
+function cancelFolderDrag(){finishFolderDrag(false);}
+function finishFolderDrag(keep){
+  const drag=folderDrag;
+  if(!drag) return;
+  folderDrag=null;
+  cancelAnimationFrame(drag.frame);
+  drag.capture.removeEventListener('pointermove',trackFolderDrag);
+  drag.capture.removeEventListener('pointerup',endFolderDrag);
+  drag.capture.removeEventListener('pointercancel',cancelFolderDrag);
+  drag.capture.removeEventListener('lostpointercapture',cancelFolderDrag);
+  if(drag.capture.hasPointerCapture(drag.pointerId)) drag.capture.releasePointerCapture(drag.pointerId);
+  drag.row.classList.remove('folder-dragging');
+  if(!keep && folderDraft){folderDraft.ids=drag.initial;renderFolderSelection();}
+}
+
 function renderFolderCandidates(){
   const el = document.getElementById('folder-edit-candidates');
   if(!el || !folderDraft) return;
@@ -2057,6 +2201,7 @@ function addFolderSong(id){
 }
 async function saveFolderEditor(){
   if(!folderDraft || folderDraft.saving) return;
+  finishFolderDrag(true);
   const draft = folderDraft;
   const status = document.getElementById('folder-edit-status');
   if(!db || !navigator.onLine){ status.textContent='Conecte-se à internet para salvar. Suas alterações continuam abertas.'; return; }
@@ -2067,6 +2212,8 @@ async function saveFolderEditor(){
   if(additions.length+removals.length>499){ status.textContent='Salve em etapas de até 499 inclusões ou remoções.'; return; }
   draft.saving=true;
   document.getElementById('folder-edit-save').disabled=true;
+  document.getElementById('folder-edit-cancel').disabled=true;
+  document.getElementById('screen-folder').classList.add('folder-saving');
   status.textContent='Salvando…';
   try{
     const batch = writeBatch(db);
@@ -2074,13 +2221,21 @@ async function saveFolderEditor(){
     removals.forEach(id=>batch.update(doc(db,'songs',id),{folders:arrayRemove(draft.id)}));
     batch.update(doc(db,'folders',draft.id),{songOrder:ids});
     await batch.commit();
-    if(folderDraft===draft && document.getElementById('folder-edit-save')) closeModal();
+    // Reflect the committed batch immediately, even before a snapshot render.
+    const f=folders.find(f=>f.id===draft.id); if(f) f.songOrder=ids;
+    songs.forEach(song=>{
+      if(additions.includes(song.id)) song.folders=[...new Set([...(song.folders||[]),draft.id])];
+      if(removals.includes(song.id)) song.folders=(song.folders||[]).filter(id=>id!==draft.id);
+    });
+    if(folderDraft===draft) cancelFolderEditor();
     toast('Lista e ordem salvas');
   }catch(e){
     console.error(e);
     status.textContent='Não foi possível salvar. Suas alterações foram mantidas; tente novamente.';
   }finally{
     draft.saving=false;
+    document.getElementById('screen-folder').classList.remove('folder-saving');
+    document.getElementById('folder-edit-cancel').disabled=false;
     if(folderDraft===draft && document.getElementById('folder-edit-save')) document.getElementById('folder-edit-save').disabled=false;
   }
 }
@@ -4406,7 +4561,7 @@ function toast(msg){
 /* ---------------- EXPOSE TO GLOBAL SCOPE (needed for inline onclick=""") ---------------- */
 Object.assign(window, {
   queueSearch, showScreen, goToTab, renderCifras, openFolder, openNewFolder, confirmNewFolder, openFolderMenu,
-  openFolderEditor, renderFolderCandidates, moveFolderSong, removeFolderSong, addFolderSong, saveFolderEditor,
+  backFromFolder, openFolderEditor, cancelFolderEditor, toggleFolderAdd, removeFolderSongById, startFolderDrag, folderGripKey, renderFolderCandidates, moveFolderSong, removeFolderSong, addFolderSong, saveFolderEditor,
   renameFolder, confirmRenameFolder, deleteFolder, openSong, backFromSong, transposeSong, setSongMode,
   adjustFont, openSongMenu, openSongMenuFor, manageSongFolders, confirmSongFolders,
   toggleDockPanel, closeDockPanel, closeScrollPanel, resetTranspose, openSongOptions,
@@ -4533,3 +4688,4 @@ updateFullscreenIcons();
 </script>
 </body>
 </html>
+
