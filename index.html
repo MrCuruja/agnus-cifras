@@ -1033,11 +1033,21 @@
   #folder-edit-status{font-size:13px;color:var(--text-dim);margin:0 0 8px;line-height:1.4}
   #folder-edit-status:empty{display:none}
   .folder-editing #folder-list{padding-bottom:calc(150px + env(safe-area-inset-bottom))}
-  #folder-add-panel{flex-shrink:0;max-height:42%;overflow-y:auto;background:var(--bg-elev);padding:12px 16px calc(100px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
-  #folder-add-panel[hidden]{display:none}
-  #folder-edit-search{width:100%}
-  #folder-edit-candidates .folder-edit-row{display:flex;gap:10px;align-items:center;padding:10px 0}
-  .folder-saving .folder-control,.folder-saving .folder-add-toggle,#screen-folder.folder-saving #folder-add-panel{pointer-events:none;opacity:.4}
+  #screen-folder-add{overflow:hidden}
+  #screen-folder-add .folder-header h2{font-size:18px;flex:1}
+  #screen-folder-add .folder-header .btn{flex:0 0 auto;padding:10px 12px}
+  .folder-add-search{padding:16px 16px 8px;flex-shrink:0}
+  #folder-edit-search{width:100%;min-height:48px;font-size:16px;border-radius:14px;padding:12px 16px;background:var(--bg-elev);color:var(--text);border:1px solid var(--line);appearance:none;-webkit-appearance:none}
+  #folder-add-summary{margin:0;padding:4px 18px 12px;font-size:13px;color:var(--text-dim);flex-shrink:0}
+  #folder-edit-candidates{display:block;min-height:0;padding-bottom:calc(24px + env(safe-area-inset-bottom));overscroll-behavior:contain}
+  #folder-edit-candidates .row{min-height:78px;margin-bottom:10px;cursor:default}
+  #folder-edit-candidates .row:active{transform:none}
+  .folder-candidate.selected{opacity:.42}
+  .folder-candidate-add{width:48px;min-height:48px;display:flex;align-items:center;justify-content:center;border:0;background:transparent;color:var(--text);flex-shrink:0;cursor:pointer}
+  .folder-candidate-add span{display:flex;align-items:center;justify-content:center;border:2px solid currentColor;border-radius:50%;width:27px;height:27px;font-size:25px;line-height:1}
+  .folder-candidate-add:disabled{cursor:default}
+  .folder-candidate-state{font-size:11px;color:var(--text-dim);margin-top:3px}
+  .folder-saving .folder-control,.folder-saving .folder-add-toggle{pointer-events:none;opacity:.4}
   @media(prefers-reduced-motion:reduce){#screen-folder *{transition:none!important;animation:none!important}}
 
 </style>
@@ -1233,10 +1243,6 @@
     <button class="icon-btn fs-btn" onclick="toggleFullscreen()" title="Tela cheia" aria-label="Tela cheia"><span class="fs-ic"></span></button>
   </div>
   <div class="list" id="folder-list" style="padding-top:12px;"></div>
-  <section id="folder-add-panel" hidden>
-    <input id="folder-edit-search" type="search" placeholder="Buscar título ou artista" aria-label="Buscar músicas para adicionar" oninput="renderFolderCandidates()">
-    <div id="folder-edit-candidates"></div>
-  </section>
   <div class="folder-edit-footer" id="folder-edit-footer" inert aria-hidden="true">
     <p id="folder-edit-status" role="status" aria-live="polite"></p>
     <div class="folder-edit-buttons">
@@ -1247,6 +1253,19 @@
 </div>
 
 <!-- ===================== SONG VIEW SCREEN ===================== -->
+<div class="screen" id="screen-folder-add">
+  <div class="folder-header">
+    <button class="back-btn" aria-label="Voltar para edição da lista" onclick="backFromFolderAdd()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12H5"/><path d="M12 19l-7-7 7-7"/></svg></button>
+    <h2>Adicionar música</h2>
+    <button class="btn ghost" onclick="backFromFolderAdd()">Concluir</button>
+  </div>
+  <div class="folder-add-search">
+    <input id="folder-edit-search" type="search" placeholder="Buscar título ou artista" aria-label="Buscar músicas para adicionar" oninput="renderFolderCandidates()">
+  </div>
+  <p id="folder-add-summary" role="status" aria-live="polite"></p>
+  <div class="list" id="folder-edit-candidates"></div>
+</div>
+
 <div class="screen" id="screen-song">
   <!-- Cabeçalho + cifra ficam no MESMO container rolável (#chord-scroll): assim
        o cabeçalho faz parte da cifra e some ao rolar para baixo, junto com o
@@ -1694,6 +1713,7 @@ function onDataChanged(){
 function renderChangedData(){
   if(isActive('cifras')) renderCifras();
   if(isActive('listas')) renderListas();
+  if(isActive('folder-add')) renderFolderCandidates();
   if(isActive('artistas')) renderArtistas();
   if(isActive('artist') && (currentArtistId || currentArtistName)) _openArtistView(currentArtistId, currentArtistName, {stay:true});
   if(isActive('folder') && currentFolderId) openFolder(currentFolderId, {stay:true});
@@ -1757,6 +1777,7 @@ function isSameActiveTarget(state){
   switch(state.screen){
     case 'song':        return isActive('song')        && currentSongId   === state.songId;
     case 'folder':      return isActive('folder')      && currentFolderId === state.folderId;
+    case 'folder-add':  return isActive('folder-add')  && folderDraft?.id === state.folderId;
     case 'artist':      return isActive('artist')      && !!state.artistId && currentArtistId === state.artistId;
     case 'edit':        return isActive('edit')        && currentSongId   === (state.songId||null);
     case 'lyrics-edit': return isActive('lyrics-edit') && currentSongId   === state.songId;
@@ -1784,6 +1805,11 @@ function restoreNavState(state){
     return;
   }
   if(state.screen==='folder'){ openFolder(state.folderId, {skipHistory:true}); return; }
+  if(state.screen==='folder-add'){
+    if(folderDraft?.id===state.folderId){ showScreen('folder-add'); renderFolderCandidates(); }
+    else { openFolder(state.folderId, {skipHistory:true}); replaceNavState({screen:'folder',folderId:state.folderId}); }
+    return;
+  }
   if(state.screen==='song'){
     currentSongId = state.songId;
     cameFrom = state.cameFrom || 'cifras';
@@ -1854,7 +1880,7 @@ function goToTab(name){
 
 /* ---------------- NAVIGATION ---------------- */
 function showScreen(name){
-  if(name!=='folder' && folderDraft) cancelFolderEditor();
+  if(name!=='folder' && name!=='folder-add' && folderDraft) cancelFolderEditor();
   document.body.classList.toggle('reader-active',name==='song');
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
   document.getElementById('screen-'+name).classList.add('active');
@@ -2085,7 +2111,6 @@ function cancelFolderEditor(){
   screen.classList.remove('folder-editing');
   document.getElementById('folder-edit-toggle').hidden=false;
   if(isActive('folder')) document.getElementById('folder-edit-toggle').focus({preventScroll:true});
-  document.getElementById('folder-add-panel').hidden=true;
   const footer = document.getElementById('folder-edit-footer');
   footer.inert=true; footer.setAttribute('aria-hidden','true');
   document.getElementById('folder-edit-cancel').disabled=false;
@@ -2098,9 +2123,17 @@ function cancelFolderEditor(){
 function backFromFolder(){if(folderDraft && !folderDraft.saving) cancelFolderEditor();else if(!folderDraft) history.back();}
 function toggleFolderAdd(){
   if(!folderDraft || folderDraft.saving) return;
-  const panel = document.getElementById('folder-add-panel');
-  panel.hidden=!panel.hidden;
-  if(!panel.hidden){renderFolderCandidates();document.getElementById('folder-edit-search').focus();}
+  if(isActive('folder-add')) return;
+  document.getElementById('folder-edit-search').value='';
+  renderFolderCandidates();
+  document.getElementById('folder-edit-candidates').scrollTop=0;
+  showScreen('folder-add');
+  pushNavState({screen:'folder-add',folderId:folderDraft.id});
+}
+function backFromFolderAdd(){
+  document.getElementById('folder-edit-search').blur();
+  if(history.state?.screen==='folder-add') history.back();
+  else if(currentFolderId) openFolder(currentFolderId,{skipHistory:true});
 }
 function removeFolderSongById(id){
   if(!folderDraft || folderDraft.saving) return;
@@ -2176,11 +2209,18 @@ function renderFolderCandidates(){
   const normalize = value=>String(value||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
   const query = normalize(document.getElementById('folder-edit-search').value.trim());
   const selected = new Set(folderDraft.ids);
-  const candidates = songs.filter(s=>!selected.has(s.id) && normalize(s.title+' '+(s.artist||'')).includes(query))
+  const candidates = songs.filter(s=>normalize(s.title+' '+(s.artist||'')).includes(query))
     .sort((a,b)=>(a.title||'').localeCompare(b.title||'','pt-BR'));
-  el.innerHTML = candidates.map(s=>`<div class="folder-edit-row">
-    <div style="min-width:0;flex:1"><strong>${escapeHtml(s.title)}</strong><div style="color:var(--text-dim);font-size:13px">${escapeHtml(s.artist||'')}</div></div>
-    <button class="btn ghost" data-song-id="${escapeHtml(s.id)}" onclick="addFolderSong(this.dataset.songId)">Adicionar</button></div>`).join('') || '<p style="color:var(--text-dim)">Nenhuma música disponível para esta busca.</p>';
+  const count = songs.filter(s=>selected.has(s.id)).length;
+  document.getElementById('folder-add-summary').textContent = `${query ? candidates.length+' resultado(s)' : songs.length+' músicas no acervo'} · ${count} na lista. As inclusões serão confirmadas em Salvar lista.`;
+  el.innerHTML = candidates.map(s=>{
+    const added=selected.has(s.id);
+    return `<div class="row folder-candidate ${added?'selected':''}" data-song-id="${escapeHtml(s.id)}">
+      ${coverThumb(getSongCover(s))}
+      <div class="info"><div class="name">${escapeHtml(s.title)}</div><div class="sub">${escapeHtml(s.artist||'')}</div>${added?'<div class="folder-candidate-state">Já adicionada à lista</div>':''}</div>
+      <button class="folder-candidate-add" data-song-id="${escapeHtml(s.id)}" aria-label="${added?'Já adicionada:':'Adicionar'} ${escapeHtml(s.title)}" ${added?'disabled':''} onclick="addFolderSong(this.dataset.songId)"><span aria-hidden="true">${added?'✓':'+'}</span></button>
+    </div>`;
+  }).join('') || '<div class="empty-state">Nenhuma música encontrada.</div>';
 }
 function moveFolderSong(index,delta){
   if(!folderDraft || folderDraft.saving) return;
@@ -4561,7 +4601,7 @@ function toast(msg){
 /* ---------------- EXPOSE TO GLOBAL SCOPE (needed for inline onclick=""") ---------------- */
 Object.assign(window, {
   queueSearch, showScreen, goToTab, renderCifras, openFolder, openNewFolder, confirmNewFolder, openFolderMenu,
-  backFromFolder, openFolderEditor, cancelFolderEditor, toggleFolderAdd, removeFolderSongById, startFolderDrag, folderGripKey, renderFolderCandidates, moveFolderSong, removeFolderSong, addFolderSong, saveFolderEditor,
+  backFromFolder, backFromFolderAdd, openFolderEditor, cancelFolderEditor, toggleFolderAdd, removeFolderSongById, startFolderDrag, folderGripKey, renderFolderCandidates, moveFolderSong, removeFolderSong, addFolderSong, saveFolderEditor,
   renameFolder, confirmRenameFolder, deleteFolder, openSong, backFromSong, transposeSong, setSongMode,
   adjustFont, openSongMenu, openSongMenuFor, manageSongFolders, confirmSongFolders,
   toggleDockPanel, closeDockPanel, closeScrollPanel, resetTranspose, openSongOptions,
