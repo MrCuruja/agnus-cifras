@@ -1839,6 +1839,24 @@ function restoreNavState(state){
   }
   showScreen('cifras');
 }
+// Nas abas raiz, bloqueia o gesto horizontal iniciado na borda esquerda.
+// No Safari/iOS o histórico sozinho não impede a animação nativa de voltar.
+// Gestos verticais e páginas internas permanecem livres.
+let rootEdgeTouch = null;
+document.addEventListener('touchstart', function(e){
+  rootEdgeTouch = null;
+  if(e.touches.length!==1 || !['cifras','listas','artistas'].some(isActive)) return;
+  const t=e.touches[0];
+  if(t.clientX<=32) rootEdgeTouch={x:t.clientX,y:t.clientY};
+}, {passive:true});
+document.addEventListener('touchmove', function(e){
+  if(!rootEdgeTouch || e.touches.length!==1) return;
+  const t=e.touches[0], dx=t.clientX-rootEdgeTouch.x, dy=t.clientY-rootEdgeTouch.y;
+  if(Math.abs(dy)>Math.abs(dx) && Math.abs(dy)>8){rootEdgeTouch=null;return;}
+  if(dx>6 && dx>Math.abs(dy)*1.2 && e.cancelable) e.preventDefault();
+}, {passive:false});
+document.addEventListener('touchend', ()=>{rootEdgeTouch=null;}, {passive:true});
+document.addEventListener('touchcancel', ()=>{rootEdgeTouch=null;}, {passive:true});
 window.addEventListener('popstate', function(e){
   // Ao alcançar a sentinela, restaura a aba atual e mantém o usuário no app.
   // Não cria uma nova tela, nem permite retornar a uma aba anterior.
