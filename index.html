@@ -4101,6 +4101,36 @@ async function itunesCovers(term){
   return out;
 }
 
+// Fonte alternativa de capas, com JSONP para navegadores móveis.
+async function deezerCovers(term){
+  const url = 'https://api.deezer.com/search?q=' + encodeURIComponent(term) + '&limit=40&output=jsonp';
+  const data = await jsonp(url);
+  if(data.error) throw new Error(data.error.message || 'Deezer indisponível');
+  const seen = new Set(), out = [];
+  for(const r of (data.data || [])){
+    const art = (r.album && (r.album.cover_xl || r.album.cover_big || r.album.cover_medium)) || (r.artist && r.artist.picture_big);
+    if(!art || seen.has(art)) continue;
+    seen.add(art);
+    out.push({url:art, title:r.title || (r.album && r.album.title) || '', artist:(r.artist && r.artist.name) || ''});
+  }
+  return out;
+}
+async function searchCovers(term){
+  const sources = [itunesCovers, deezerCovers];
+  const failures = [];
+  for(const source of sources){
+    try {
+      const results = await source(term);
+      if(results.length) return results;
+    } catch(err){
+      failures.push(source.name + ': ' + (err && err.message || err));
+      console.warn('Fonte de capas indisponível:', source.name, err);
+    }
+  }
+  if(failures.length === sources.length) throw new Error(failures.join(' | '));
+  return [];
+}
+
 let coverTarget = 'song'; // 'song' (formulário de cifra) ou 'artist' (modal de artista)
 function openCoverSearch(target){
   coverTarget = target || 'song';
@@ -4137,7 +4167,7 @@ async function runCoverSearch(){
   if(!q){ grid.innerHTML = '<div class="cover-status">Digite algo para buscar.</div>'; return; }
   grid.innerHTML = '<div class="cover-status"><div class="cover-spinner"></div>Buscando capas...</div>';
   try{
-    const res = await itunesCovers(q);
+    const res = await searchCovers(q);
     if(requestId !== _coverSearchRequest || !grid.isConnected) return;
     if(!res.length){
       grid.innerHTML = '<div class="cover-status">Nenhuma capa encontrada. Tente outro termo, ou use "Colar link da imagem".</div>';
