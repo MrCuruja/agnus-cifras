@@ -1679,18 +1679,21 @@ function startListeners(){
   if(!db || unsubFolders) return; // já rodando
   setSyncDot('loading');
   unsubFolders = onSnapshot(collection(db,'folders'), {includeMetadataChanges:true}, snap=>{
+    if(!snap.docChanges().length){ updateSyncState('folders',snap); return; }
     folders = snap.docs.map(d=>({id:d.id, ...d.data()}));
     onDataChanged();
     updateSyncState('folders',snap);
   }, err=>{ console.error(err); updateSyncState('folders',null); toast('Erro ao conectar ao Firebase'); });
 
   unsubSongs = onSnapshot(collection(db,'songs'), {includeMetadataChanges:true}, snap=>{
+    if(!snap.docChanges().length){ updateSyncState('songs',snap); return; }
     songs = snap.docs.map(d=>({id:d.id, ...d.data()}));
     onDataChanged();
     updateSyncState('songs',snap);
   }, err=>{ console.error(err); updateSyncState('songs',null); toast('Erro ao conectar ao Firebase'); });
 
   unsubArtists = onSnapshot(collection(db,'artists'), {includeMetadataChanges:true}, snap=>{
+    if(!snap.docChanges().length){ updateSyncState('artists',snap); return; }
     artists = snap.docs.map(d=>({id:d.id, ...d.data()}));
     rebuildArtistCoverMap();
     onDataChanged();
@@ -4742,6 +4745,16 @@ syncAppViewport();
 document.addEventListener('gesturestart',event=>event.preventDefault(),{passive:false});
 document.addEventListener('gesturechange',event=>event.preventDefault(),{passive:false});
 document.addEventListener('touchmove',event=>{ if(event.touches.length>1) event.preventDefault(); },{passive:false});
+
+
+// Registra o cache do PWA sem alterar as rotas ou o histórico existente.
+// Após a primeira visita online, o shell e os módulos públicos ficam disponíveis offline.
+if('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', {scope:'./'})
+      .catch(err => console.info('Cache offline do PWA indisponível:', err));
+  }, {once:true});
+}
 
 /* ---------------- INIT ---------------- */
 // Garante um estado inicial consistente no histórico do navegador ("Cifras"),
