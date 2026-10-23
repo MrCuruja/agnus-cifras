@@ -1840,13 +1840,6 @@ function restoreNavState(state){
   showScreen('cifras');
 }
 window.addEventListener('popstate', function(e){
-  // Ao alcançar a sentinela, restaura a aba atual e mantém o usuário no app.
-  // Não cria uma nova tela, nem permite retornar a uma aba anterior.
-  if(e.state?.agnusRootGuard){
-    const current = ['cifras','listas','artistas'].find(isActive) || 'cifras';
-    history.pushState({screen:current,root:true,agnusRootReady:true}, '', '#'+current);
-    return;
-  }
   // Se a apresentação (telão) está aberta, o botão voltar primeiro fecha ela
   // e não navega a tela de trás.
   if(presentActive){ closePresentationInternal(); return; }
@@ -1881,9 +1874,9 @@ if('ResizeObserver' in window) new ResizeObserver(scheduleReaderLayout).observe(
 // o botão voltar também funcione entre elas.
 function goToTab(name){
   if(isActive(name)) return;
-  // Abas principais são destinos de raiz, não entradas adicionais no histórico.
+  // As abas participam do histórico, como na navegação original.
   showScreen(name);
-  replaceNavState({screen:name, root:true, agnusRootReady:true});
+  pushNavState({screen:name});
 }
 
 /* ---------------- NAVIGATION ---------------- */
@@ -4756,13 +4749,8 @@ document.addEventListener('touchmove',event=>{ if(event.touches.length>1) event.
 // o usuário entrar em qualquer outra tela do app.
 // Duas entradas de raiz impedem que Voltar saia do PWA ao estar nas abas.
 // A entrada sentinela nunca representa uma página interna.
-// Inicializa apenas em uma sessão nova. Antes, a entrada de raiz superior
-// não tinha agnusRootGuard e cada recarga adicionava mais duas entradas,
-// causando retornos repetidos e transições brancas no iOS.
-if(!history.state || (!history.state.agnusRootGuard && !history.state.agnusRootReady)){
-  history.replaceState({screen:'cifras', agnusRootGuard:true, root:true}, '', '#cifras');
-  history.pushState({screen:'cifras', agnusRootReady:true, root:true}, '', '#cifras');
-}
+// Estado inicial simples, como antes das tentativas de bloquear o retorno.
+if(!history.state) history.replaceState({screen:'cifras'}, '');
 if(!db){
   // Firebase não configurado: mostra listas vazias por trás do aviso de setup
   renderCifras(); renderListas();
