@@ -35,7 +35,7 @@ self.addEventListener('fetch', event => {
     return;
   }
   // Apenas módulos públicos e versionados do SDK; as requisições de dados seguem na rede.
-  if(url.origin === 'https://www.gstatic.com' && /^\\/firebasejs\\/10\\.12\\.2\\//.test(url.pathname)){
+  if(url.origin === 'https://www.gstatic.com' && url.pathname.startsWith('/firebasejs/10.12.2/')){
     event.respondWith((async () => {
       const cache = await caches.open(CDN);
       const saved = await cache.match(request);
