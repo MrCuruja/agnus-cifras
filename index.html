@@ -1839,30 +1839,12 @@ function restoreNavState(state){
   }
   showScreen('cifras');
 }
-// Nas abas raiz, bloqueia o gesto horizontal iniciado na borda esquerda.
-// No Safari/iOS o histórico sozinho não impede a animação nativa de voltar.
-// Gestos verticais e páginas internas permanecem livres.
-let rootEdgeTouch = null;
-document.addEventListener('touchstart', function(e){
-  rootEdgeTouch = null;
-  if(e.touches.length!==1 || !['cifras','listas','artistas'].some(isActive)) return;
-  const t=e.touches[0];
-  if(t.clientX<=32) rootEdgeTouch={x:t.clientX,y:t.clientY};
-}, {passive:true});
-document.addEventListener('touchmove', function(e){
-  if(!rootEdgeTouch || e.touches.length!==1) return;
-  const t=e.touches[0], dx=t.clientX-rootEdgeTouch.x, dy=t.clientY-rootEdgeTouch.y;
-  if(Math.abs(dy)>Math.abs(dx) && Math.abs(dy)>8){rootEdgeTouch=null;return;}
-  if(dx>6 && dx>Math.abs(dy)*1.2 && e.cancelable) e.preventDefault();
-}, {passive:false});
-document.addEventListener('touchend', ()=>{rootEdgeTouch=null;}, {passive:true});
-document.addEventListener('touchcancel', ()=>{rootEdgeTouch=null;}, {passive:true});
 window.addEventListener('popstate', function(e){
   // Ao alcançar a sentinela, restaura a aba atual e mantém o usuário no app.
   // Não cria uma nova tela, nem permite retornar a uma aba anterior.
   if(e.state?.agnusRootGuard){
     const current = ['cifras','listas','artistas'].find(isActive) || 'cifras';
-    history.pushState({screen:current,root:true}, '', '#'+current);
+    history.pushState({screen:current,root:true,agnusRootReady:true}, '', '#'+current);
     return;
   }
   // Se a apresentação (telão) está aberta, o botão voltar primeiro fecha ela
@@ -1901,7 +1883,7 @@ function goToTab(name){
   if(isActive(name)) return;
   // Abas principais são destinos de raiz, não entradas adicionais no histórico.
   showScreen(name);
-  replaceNavState({screen:name, root:true});
+  replaceNavState({screen:name, root:true, agnusRootReady:true});
 }
 
 /* ---------------- NAVIGATION ---------------- */
@@ -4774,9 +4756,12 @@ document.addEventListener('touchmove',event=>{ if(event.touches.length>1) event.
 // o usuário entrar em qualquer outra tela do app.
 // Duas entradas de raiz impedem que Voltar saia do PWA ao estar nas abas.
 // A entrada sentinela nunca representa uma página interna.
-if(!history.state || !history.state.agnusRootGuard){
+// Inicializa apenas em uma sessão nova. Antes, a entrada de raiz superior
+// não tinha agnusRootGuard e cada recarga adicionava mais duas entradas,
+// causando retornos repetidos e transições brancas no iOS.
+if(!history.state || (!history.state.agnusRootGuard && !history.state.agnusRootReady)){
   history.replaceState({screen:'cifras', agnusRootGuard:true, root:true}, '', '#cifras');
-  history.pushState({screen:'cifras', root:true}, '', '#cifras');
+  history.pushState({screen:'cifras', agnusRootReady:true, root:true}, '', '#cifras');
 }
 if(!db){
   // Firebase não configurado: mostra listas vazias por trás do aviso de setup
