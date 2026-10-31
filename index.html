@@ -1446,6 +1446,12 @@ Santo, Santo Ele é"></textarea>
         <label for="slides-size">Tamanho do texto</label>
         <select id="slides-size" onchange="onSlideAppearanceChange()"></select>
       </div>
+      <div class="sa-field">
+        <label for="slides-bg-file">Imagem de fundo da apresentação</label>
+        <input id="slides-bg-file" type="file" accept="image/*" onchange="onSlideBackgroundFile(this)" style="max-width:100%;font-size:13px">
+        <button type="button" class="btn-sm" onclick="removeSlideBackground()" style="margin-top:6px">Restaurar fundo padrão</button>
+        <small id="slides-bg-status" style="display:block;color:var(--text-dim);margin-top:5px">Fundo padrão</small>
+      </div>
     </div>
     <div class="hint">Cada bloco abaixo vira um slide projetado no telão. Divida a letra em partes curtas (uma estrofe ou refrão por slide costuma funcionar bem). Edite livremente e use os botões de cada card para mover, duplicar ou remover. "Gerar da letra" recria os slides automaticamente a partir da letra da música.</div>
     <div class="slides-cards" id="slides-cards"></div>
@@ -2819,22 +2825,59 @@ function applyEditorFontPreview(){
   const wrap = document.getElementById('slides-cards');
   if(wrap) wrap.style.fontFamily = slideFontStack(getEditorAppearance().font);
 }
+let slideBackgroundDraft = null;
+let presentBackground = null;
+function effectiveSlideBackground(value){ return typeof value==='string' && value.startsWith('data:image/') ? value : SLIDE_BG_URL; }
+function setPresentationBackground(value){
+  presentBackground = effectiveSlideBackground(value);
+  document.documentElement.style.setProperty('--slide-bg', 'url("'+presentBackground+'")');
+  try{ if(projWin && !projWin.closed) projWin.document.body.style.backgroundImage='url("'+presentBackground+'")'; }catch(e){}
+}
+function refreshSlideBackgroundStatus(){
+  const el=document.getElementById('slides-bg-status');
+  if(el) el.textContent=slideBackgroundDraft ? 'Imagem personalizada selecionada' : 'Fundo padrão';
+}
+async function onSlideBackgroundFile(input){
+  const file=input.files && input.files[0];
+  if(!file)return;
+  if(!file.type.startsWith('image/')){toast('Escolha um arquivo de imagem');return;}
+  try{
+    const bitmap=await createImageBitmap(file);
+    const scale=Math.min(1,1600/Math.max(bitmap.width,bitmap.height));
+    const canvas=document.createElement('canvas');
+    canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+    canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+    canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
+    bitmap.close();
+    const data=canvas.toDataURL('image/jpeg',0.72);
+    if(data.length>850000){toast('Imagem muito grande. Escolha outra imagem.');return;}
+    slideBackgroundDraft=data;
+    refreshSlideBackgroundStatus();
+    onSlideAppearanceChange();
+  }catch(e){console.error(e);toast('Não foi possível abrir esta imagem');}
+}
+function removeSlideBackground(){
+  slideBackgroundDraft=null;
+  const input=document.getElementById('slides-bg-file');if(input)input.value='';
+  refreshSlideBackgroundStatus();
+  onSlideAppearanceChange();
+}
 let appearanceSaveTimer = null;
 function onSlideAppearanceChange(){
   applyEditorFontPreview();
   const s = songs.find(x=>x.id===currentSongId);
   const ap = getEditorAppearance();
-  if(s){ s.slidesFont = ap.font; s.slidesSize = ap.size; } // otimista
+  if(s){ s.slidesFont = ap.font; s.slidesSize = ap.size; s.slidesBackground = slideBackgroundDraft; } // otimista
   // Se uma apresentação desta música está no ar, reflete a mudança na hora.
   if(presentActive && presentSongId===currentSongId){
-    presentFontKey = ap.font; presentSizeKey = ap.size; applyPresentSizeVars(); showPresentSlide();
+    presentFontKey = ap.font; presentSizeKey = ap.size; setPresentationBackground(slideBackgroundDraft); applyPresentSizeVars(); showPresentSlide();
   }
   clearTimeout(appearanceSaveTimer);
   appearanceSaveTimer = setTimeout(()=>saveSlideAppearance(s?.id, ap), 600);
 }
 async function saveSlideAppearance(id, ap){
   if(!db || !id || !ap) return;
-  try{ await updateDoc(doc(db,'songs',id), {slidesFont:ap.font, slidesSize:ap.size, updatedAt:Date.now()}); }
+  try{ await updateDoc(doc(db,'songs',id), {slidesFont:ap.font, slidesSize:ap.size, slidesBackground:slideBackgroundDraft, updatedAt:Date.now()}); }
   catch(e){ console.error(e); }
 }
 
@@ -2851,6 +2894,9 @@ function openSlidesEdit(id, opts){
   const sSel = document.getElementById('slides-size');
   if(fSel) fSel.value = SLIDE_FONTS[s.slidesFont] ? s.slidesFont : 'sans';
   if(sSel) sSel.value = SLIDE_SIZES[s.slidesSize] ? s.slidesSize : 'normal';
+  slideBackgroundDraft = s.slidesBackground || null;
+  const bgInput=document.getElementById('slides-bg-file');if(bgInput)bgInput.value='';
+  refreshSlideBackgroundStatus();
   applyEditorFontPreview();
   renderSlideCards(getSongSlides(s));
   document.getElementById('slides-reset-btn').style.display = hasManualSlides(s) ? '' : 'none';
@@ -2958,7 +3004,7 @@ async function saveSlides(){
   const ap = getEditorAppearance();
   s.slides = arr; s.slidesFont = ap.font; s.slidesSize = ap.size; // atualização otimista
   try{
-    await updateDoc(doc(db,'songs',currentSongId), {slides: arr, slidesFont: ap.font, slidesSize: ap.size, updatedAt: Date.now()});
+    await updateDoc(doc(db,'songs',currentSongId), {slides: arr, slidesFont: ap.font, slidesSize: ap.size, slidesBackground:slideBackgroundDraft, updatedAt: Date.now()});
     toast('Slides salvos');
     history.back();
   }catch(e){ console.error(e); toast('Erro ao salvar os slides'); }
@@ -2995,7 +3041,7 @@ function _presentFromEditor(presenter){
   if(arr.length===0){ toast('Adicione ao menos um slide'); return; }
   const s = songs.find(x=>x.id===currentSongId);
   const ap = getEditorAppearance();
-  startPresentation((s&&s.title)||'', arr, {presenter:presenter, font:ap.font, size:ap.size});
+  startPresentation((s&&s.title)||'', arr, {presenter:presenter, font:ap.font, size:ap.size, background:slideBackgroundDraft});
 }
 
 /* ---------------- APRESENTAÇÃO (TELÃO) ---------------- */
@@ -3026,7 +3072,8 @@ function startPresentationForSong(id, opts){
   startPresentation(s.title||'', slides, {
     presenter: !!opts.presenter,
     font: SLIDE_FONTS[s.slidesFont] ? s.slidesFont : 'sans',
-    size: SLIDE_SIZES[s.slidesSize] ? s.slidesSize : 'normal'
+    size: SLIDE_SIZES[s.slidesSize] ? s.slidesSize : 'normal',
+    background:s.slidesBackground || null
   });
   presentSongId = id; // habilita atualização ao vivo se a música for editada
 }
@@ -3147,6 +3194,7 @@ function startPresentation(title, slides, opts){
   presentFontKey = SLIDE_FONTS[opts.font] ? opts.font : 'sans';
   presentSizeKey = SLIDE_SIZES[opts.size] ? opts.size : 'normal';
   applyPresentSizeVars();
+  setPresentationBackground(opts.background);
   requestWakeLock();
   bindPresentKeys();
   // Empilha um estado no histórico para que o botão "voltar" feche a apresentação.
@@ -3408,7 +3456,7 @@ function openProjectionWindow(){
   // Aplica a imagem de fundo (embutida) na janela de projeção.
   try{
     const b = projWin.document.body;
-    b.style.backgroundImage = 'url("' + SLIDE_BG_URL + '")';
+    b.style.backgroundImage = 'url("' + (presentBackground || SLIDE_BG_URL) + '")';
     b.style.backgroundSize = 'cover';
     b.style.backgroundPosition = 'center';
     b.style.backgroundRepeat = 'no-repeat';
