@@ -2376,7 +2376,8 @@ function escapeHtml(str){
   return String(str??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 function classifyLine(line){
-  const tokens = line.split(/(\s+)/);
+  // Mantém marcadores entre colchetes como um único token, mesmo com espaços internos (ex.: [2x coro]).
+  const tokens = line.split(/(\[[^\]\n]+\]|\s+)/).filter(t=>t!=='');
   const isBracket = t => /^\[.+\]$/.test(t);
   const isWs = t => t==='' || /^\s+$/.test(t);
   const isNeutral = t => NEUTRAL_TOKEN_RE.test(t);
